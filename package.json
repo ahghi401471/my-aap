@@ -8,6 +8,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "generate:cities": "node scripts/generate-cities.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -26,6 +29,7 @@
     "@babel/core": "^7.26.0",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.6",
+    "proj4": "^2.20.8",
     "typescript": "~5.9.2"
   }
 }

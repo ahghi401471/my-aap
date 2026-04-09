@@ -20,7 +20,12 @@ export function searchNearbyEquipment(options: SearchOptions): SearchResult[] {
   return mockUsers
     .filter((user) => user.equipmentIds.includes(options.equipmentId))
     .map((user) => {
-      const city = cities.find((item) => item.id === user.cityId);
+      const hasActiveTemporaryLocation =
+        user.temporaryLocation &&
+        new Date(user.temporaryLocation.expiresAt).getTime() > Date.now();
+
+      const targetCityId = hasActiveTemporaryLocation ? user.temporaryLocation?.cityId : user.cityId;
+      const city = cities.find((item) => item.id === targetCityId);
       if (!city) {
         return null;
       }
@@ -31,7 +36,8 @@ export function searchNearbyEquipment(options: SearchOptions): SearchResult[] {
         user,
         city,
         equipment,
-        distanceKm
+        distanceKm,
+        locationSource: hasActiveTemporaryLocation ? "temporary" : "home"
       };
     })
     .filter((item): item is SearchResult => item !== null)

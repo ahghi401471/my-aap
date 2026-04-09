@@ -4,16 +4,19 @@ import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
 import { searchNearbyEquipment } from "../services/search";
-import { City, SearchMode, SearchResult, User } from "../types/models";
+import { City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
 type AppStateContextValue = {
   currentUser: User;
   selectedCity: City;
+  activeTemporaryCity?: City;
   myEquipmentIds: string[];
   searchResults: SearchResult[];
   lastSearchMode: SearchMode;
-  updateProfile: (fullName: string, cityId: string) => void;
+  updateProfile: (fullName: string, phoneNumber: string, cityId: string) => void;
   updateMyEquipment: (equipmentIds: string[]) => void;
+  setTemporaryLocation: (cityId: string, durationHours: number) => void;
+  clearTemporaryLocation: () => void;
   runSearch: (params: {
     equipmentId: string;
     searchMode: SearchMode;
@@ -38,10 +41,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [currentUser.cityId]
   );
 
-  function updateProfile(fullName: string, cityId: string) {
+  const activeTemporaryLocation = useMemo<TemporaryLocation | undefined>(() => {
+    const temporaryLocation = currentUser.temporaryLocation;
+
+    if (!temporaryLocation) {
+      return undefined;
+    }
+
+    if (new Date(temporaryLocation.expiresAt).getTime() <= Date.now()) {
+      return undefined;
+    }
+
+    return temporaryLocation;
+  }, [currentUser.temporaryLocation]);
+
+  const activeTemporaryCity = useMemo(
+    () => cities.find((city) => city.id === activeTemporaryLocation?.cityId),
+    [activeTemporaryLocation?.cityId]
+  );
+
+  function updateProfile(fullName: string, phoneNumber: string, cityId: string) {
     setCurrentUser((previous) => ({
       ...previous,
       fullName,
+      phoneNumber,
       cityId
     }));
   }
@@ -51,6 +74,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser((previous) => ({
       ...previous,
       equipmentIds
+    }));
+  }
+
+  function setTemporaryLocation(cityId: string, durationHours: number) {
+    const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
+
+    setCurrentUser((previous) => ({
+      ...previous,
+      temporaryLocation: {
+        cityId,
+        durationHours,
+        expiresAt
+      }
+    }));
+  }
+
+  function clearTemporaryLocation() {
+    setCurrentUser((previous) => ({
+      ...previous,
+      temporaryLocation: undefined
     }));
   }
 
@@ -91,11 +134,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentUser,
         selectedCity,
+        activeTemporaryCity,
         myEquipmentIds,
         searchResults,
         lastSearchMode,
         updateProfile,
         updateMyEquipment,
+        setTemporaryLocation,
+        clearTemporaryLocation,
         runSearch
       }}
     >

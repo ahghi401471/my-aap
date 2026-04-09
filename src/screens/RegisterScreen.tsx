@@ -1,27 +1,42 @@
 import React, { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
+import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
-import { cities, useAppState } from "../hooks/useAppState";
+import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { spacing } from "../constants/spacing";
 import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
 export function RegisterScreen({ navigation }: Props) {
-  const { currentUser, selectedCity, updateProfile } = useAppState();
+  const { currentUser, myEquipmentIds, selectedCity, updateMyEquipment, updateProfile } = useAppState();
   const [fullName, setFullName] = useState(currentUser.fullName);
+  const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
   const [cityId, setCityId] = useState(selectedCity.id);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
+
+  function toggleEquipment(equipmentId: string) {
+    if (selectedEquipmentIds.includes(equipmentId)) {
+      setSelectedEquipmentIds(selectedEquipmentIds.filter((item) => item !== equipmentId));
+      return;
+    }
+
+    setSelectedEquipmentIds([...selectedEquipmentIds, equipmentId]);
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heroTitle}>מוצאים ציוד לפי קרבה</Text>
-      <Text style={styles.heroSubtitle}>
-        כל משתמש נרשם, בוחר עיר מתוך רשימת ערים בישראל, ומתחיל לחפש ציוד מהקרוב לרחוק.
-      </Text>
+      <View style={styles.heroCard}>
+        <Text style={styles.heroEyebrow}>ציוד סוכרת קרוב אליך</Text>
+        <Text style={styles.heroTitle}>נרשמים פעם אחת ומוצאים עזרה מהר</Text>
+        <Text style={styles.heroSubtitle}>
+          בחר עיר, ציוד קבוע ופרטי קשר, והאפליקציה תציג בהמשך אנשים לפי הקרבה אליך.
+        </Text>
+      </View>
 
       <SectionCard title="פרטי הרשמה">
         <TextInput
@@ -39,14 +54,42 @@ export function RegisterScreen({ navigation }: Props) {
           onSelect={(city) => setCityId(city.id)}
         />
 
+        <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
+        <Text style={styles.helperText}>
+          אפשר לבחור כמה סוגים. שמות האינסולין מוצגים בעברית ובסוגריים באנגלית.
+        </Text>
+        <EquipmentPicker
+          items={equipmentCatalog}
+          selectedIds={selectedEquipmentIds}
+          onToggle={toggleEquipment}
+        />
+
+        <TextInput
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          placeholder="מספר פלאפון"
+          style={styles.input}
+          keyboardType="phone-pad"
+          placeholderTextColor={colors.muted}
+        />
+
         <Pressable
-          style={styles.primaryButton}
+          style={[
+            styles.primaryButton,
+            selectedEquipmentIds.length === 0 || !phoneNumber.trim() ? styles.buttonDisabled : null
+          ]}
+          disabled={selectedEquipmentIds.length === 0 || !phoneNumber.trim()}
           onPress={() => {
-            updateProfile(fullName.trim() || currentUser.fullName, cityId);
-            navigation.navigate("Profile");
+            updateProfile(
+              fullName.trim() || currentUser.fullName,
+              phoneNumber.trim() || currentUser.phoneNumber,
+              cityId
+            );
+            updateMyEquipment(selectedEquipmentIds);
+            navigation.navigate("TemporaryLocation");
           }}
         >
-          <Text style={styles.primaryButtonText}>המשך לפרופיל</Text>
+          <Text style={styles.primaryButtonText}>המשך למיקום זמני</Text>
         </Pressable>
       </SectionCard>
     </ScrollView>
@@ -58,33 +101,56 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md
   },
+  heroCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    padding: spacing.lg,
+    gap: spacing.sm
+  },
+  heroEyebrow: {
+    color: "#D9F6EE",
+    fontSize: 13,
+    fontWeight: "700"
+  },
   heroTitle: {
-    fontSize: 30,
+    fontSize: 31,
     fontWeight: "800",
-    color: colors.text,
+    color: "#FFFFFF",
     textAlign: "right"
   },
   heroSubtitle: {
     fontSize: 16,
-    color: colors.muted,
+    color: "#E8FAF4",
     lineHeight: 24,
     textAlign: "right"
   },
+  sectionLabel: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  helperText: {
+    color: colors.muted,
+    lineHeight: 22
+  },
   input: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+    paddingVertical: 15,
     color: colors.text,
     fontSize: 16
   },
   primaryButton: {
     backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 15,
+    borderRadius: 18,
+    paddingVertical: 16,
     alignItems: "center"
+  },
+  buttonDisabled: {
+    opacity: 0.5
   },
   primaryButtonText: {
     color: "#FFFFFF",

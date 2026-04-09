@@ -26,7 +26,9 @@ export function MyEquipmentScreen({ navigation }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <SectionCard title="איזה ציוד יש לך?">
-        <Text style={styles.caption}>בחר אחד או יותר. המערכת תשמור את הציוד הזה לפרופיל שלך.</Text>
+        <Text style={styles.caption}>
+          בחר את סוגי האינסולין והציוד הרפואי שאתה משתמש בהם. אפשר לעדכן כאן בכל שלב.
+        </Text>
         <EquipmentPicker items={equipmentCatalog} selectedIds={myEquipmentIds} onToggle={toggleEquipment} />
       </SectionCard>
 

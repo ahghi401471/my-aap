@@ -4,6 +4,7 @@ import * as Location from "expo-location";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
+import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
 import { spacing } from "../constants/spacing";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
@@ -62,24 +63,24 @@ export function RequestEquipmentScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <SectionCard title="מה אתה צריך?">
-        <View style={styles.optionGroup}>
-          {equipmentCatalog.map((item) => {
-            const selected = item.id === selectedEquipmentId;
+      <View style={styles.heroCard}>
+        <Text style={styles.heroTitle}>מבקשים ציוד לפי מיקום</Text>
+        <Text style={styles.heroSubtitle}>
+          בחר ציוד, בחר GPS או עיר, ונציג קודם את האנשים הכי קרובים אליך.
+        </Text>
+      </View>
 
-            return (
-              <Pressable
-                key={item.id}
-                style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
-                onPress={() => setSelectedEquipmentId(item.id)}
-              >
-                <Text style={[styles.optionChipText, selected ? styles.optionChipTextSelected : null]}>
-                  {item.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <SectionCard title="מה אתה צריך?">
+        <Text style={styles.helperText}>
+          בחר פריט אחד מהרשימה. אפשר לחפש לפי שם האינסולין, הסנסור, המשאבה או סוג הציוד.
+        </Text>
+        <EquipmentPicker
+          items={equipmentCatalog}
+          selectedIds={selectedEquipmentId ? [selectedEquipmentId] : []}
+          onToggle={(equipmentId) => setSelectedEquipmentId(equipmentId)}
+          label="חיפוש ציוד מבוקש"
+          multiSelect={false}
+        />
       </SectionCard>
 
       <SectionCard title="איך לחפש?">
@@ -129,29 +130,23 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md
   },
-  optionGroup: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  optionChip: {
-    borderRadius: 999,
+  heroCard: {
+    backgroundColor: colors.infoSoft,
+    borderRadius: 28,
+    padding: spacing.lg,
+    gap: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
+    borderColor: "#D4E4FF"
   },
-  optionChipSelected: {
-    borderColor: colors.secondary,
-    backgroundColor: "#FFF1D6"
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.text
   },
-  optionChipText: {
-    color: colors.text,
-    fontWeight: "600"
-  },
-  optionChipTextSelected: {
-    color: colors.secondary
+  heroSubtitle: {
+    fontSize: 15,
+    color: colors.muted,
+    lineHeight: 22
   },
   switchRow: {
     flexDirection: "row",
@@ -159,11 +154,11 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 15,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     alignItems: "center"
   },
   switchButtonActive: {
@@ -183,8 +178,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 15,
+    borderRadius: 18,
+    paddingVertical: 16,
     alignItems: "center"
   },
   primaryButtonText: {

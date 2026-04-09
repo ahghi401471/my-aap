@@ -15,9 +15,12 @@ export function ResultsScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.info}>
-        החיפוש מוין לפי קרבה {lastSearchMode === "gps" ? "למיקום הנוכחי שלך" : "למרכז העיר שבחרת"}.
-      </Text>
+      <View style={styles.heroCard}>
+        <Text style={styles.heroTitle}>התוצאות מסודרות לפי קרבה</Text>
+        <Text style={styles.info}>
+          החיפוש מוין לפי קרבה {lastSearchMode === "gps" ? "למיקום הנוכחי שלך" : "למרכז העיר שבחרת"}.
+        </Text>
+      </View>
 
       {searchResults.length === 0 ? (
         <SectionCard title="לא נמצאו תוצאות">
@@ -28,7 +31,7 @@ export function ResultsScreen({ navigation }: Props) {
           <SectionCard key={result.user.id} title={result.user.fullName}>
             <View style={styles.resultRow}>
               <Text style={styles.value}>{result.city.name}</Text>
-              <Text style={styles.label}>עיר</Text>
+              <Text style={styles.label}>{result.locationSource === "temporary" ? "מיקום זמני" : "עיר"}</Text>
             </View>
             <View style={styles.resultRow}>
               <Text style={styles.value}>{result.equipment.name}</Text>
@@ -53,6 +56,19 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.lg,
     gap: spacing.md
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 28,
+    padding: spacing.lg,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  heroTitle: {
+    color: colors.text,
+    fontSize: 27,
+    fontWeight: "800"
   },
   info: {
     color: colors.muted,
@@ -83,8 +99,8 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   secondaryButton: {
-    backgroundColor: "#FFF2DF",
-    borderRadius: 16,
+    backgroundColor: colors.secondarySoft,
+    borderRadius: 18,
     paddingVertical: 15,
     alignItems: "center"
   },

@@ -4,8 +4,11 @@
     "slug": "equipment-nearby-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#F8F4EC"
     },
     "assetBundlePatterns": [
@@ -13,6 +16,10 @@
     ],
     "android": {
       "package": "com.example.equipmentnearbyapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#127A67"
+      },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"

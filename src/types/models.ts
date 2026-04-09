@@ -13,11 +13,19 @@ export type EquipmentItem = {
   category: string;
 };
 
+export type TemporaryLocation = {
+  cityId: string;
+  durationHours: number;
+  expiresAt: string;
+};
+
 export type User = {
   id: string;
   fullName: string;
+  phoneNumber: string;
   cityId: string;
   equipmentIds: string[];
+  temporaryLocation?: TemporaryLocation;
 };
 
 export type RequestRecord = {
@@ -35,4 +43,5 @@ export type SearchResult = {
   city: City;
   equipment: EquipmentItem;
   distanceKm: number;
+  locationSource: "home" | "temporary";
 };

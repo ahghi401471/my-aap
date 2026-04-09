@@ -9,9 +9,11 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
 import { RequestEquipmentScreen } from "../screens/RequestEquipmentScreen";
 import { ResultsScreen } from "../screens/ResultsScreen";
+import { TemporaryLocationScreen } from "../screens/TemporaryLocationScreen";
 
 export type RootStackParamList = {
   Register: undefined;
+  TemporaryLocation: undefined;
   Profile: undefined;
   MyEquipment: undefined;
   RequestEquipment: undefined;
@@ -45,6 +47,11 @@ export function AppNavigator() {
           }}
         >
           <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "הרשמה" }} />
+          <Stack.Screen
+            name="TemporaryLocation"
+            component={TemporaryLocationScreen}
+            options={{ title: "מיקום זמני" }}
+          />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "פרופיל משתמש" }} />
           <Stack.Screen name="MyEquipment" component={MyEquipmentScreen} options={{ title: "הציוד שלי" }} />
           <Stack.Screen
