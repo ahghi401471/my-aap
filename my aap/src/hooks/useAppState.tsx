@@ -1,0 +1,117 @@
+import React, { createContext, useContext, useMemo, useState } from "react";
+
+import { cities } from "../data/cities";
+import { equipmentCatalog } from "../data/equipment";
+import { mockUsers } from "../data/mockUsers";
+import { searchNearbyEquipment } from "../services/search";
+import { City, SearchMode, SearchResult, User } from "../types/models";
+
+type AppStateContextValue = {
+  currentUser: User;
+  selectedCity: City;
+  myEquipmentIds: string[];
+  searchResults: SearchResult[];
+  lastSearchMode: SearchMode;
+  updateProfile: (fullName: string, cityId: string) => void;
+  updateMyEquipment: (equipmentIds: string[]) => void;
+  runSearch: (params: {
+    equipmentId: string;
+    searchMode: SearchMode;
+    cityId?: string;
+    lat?: number;
+    lng?: number;
+  }) => void;
+};
+
+const defaultUser = mockUsers[0];
+
+const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
+
+export function AppStateProvider({ children }: { children: React.ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<User>(defaultUser);
+  const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>(defaultUser.equipmentIds);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [lastSearchMode, setLastSearchMode] = useState<SearchMode>("city");
+
+  const selectedCity = useMemo(
+    () => cities.find((city) => city.id === currentUser.cityId) ?? cities[0],
+    [currentUser.cityId]
+  );
+
+  function updateProfile(fullName: string, cityId: string) {
+    setCurrentUser((previous) => ({
+      ...previous,
+      fullName,
+      cityId
+    }));
+  }
+
+  function updateMyEquipment(equipmentIds: string[]) {
+    setMyEquipmentIds(equipmentIds);
+    setCurrentUser((previous) => ({
+      ...previous,
+      equipmentIds
+    }));
+  }
+
+  function runSearch(params: {
+    equipmentId: string;
+    searchMode: SearchMode;
+    cityId?: string;
+    lat?: number;
+    lng?: number;
+  }) {
+    let baseLat = params.lat;
+    let baseLng = params.lng;
+
+    if (params.searchMode === "city") {
+      const city = cities.find((item) => item.id === params.cityId);
+      baseLat = city?.lat;
+      baseLng = city?.lng;
+    }
+
+    if (typeof baseLat !== "number" || typeof baseLng !== "number") {
+      setSearchResults([]);
+      setLastSearchMode(params.searchMode);
+      return;
+    }
+
+    const results = searchNearbyEquipment({
+      equipmentId: params.equipmentId,
+      baseLat,
+      baseLng
+    }).filter((result) => result.user.id !== currentUser.id);
+
+    setSearchResults(results);
+    setLastSearchMode(params.searchMode);
+  }
+
+  return (
+    <AppStateContext.Provider
+      value={{
+        currentUser,
+        selectedCity,
+        myEquipmentIds,
+        searchResults,
+        lastSearchMode,
+        updateProfile,
+        updateMyEquipment,
+        runSearch
+      }}
+    >
+      {children}
+    </AppStateContext.Provider>
+  );
+}
+
+export function useAppState() {
+  const context = useContext(AppStateContext);
+
+  if (!context) {
+    throw new Error("useAppState must be used inside AppStateProvider");
+  }
+
+  return context;
+}
+
+export { equipmentCatalog, cities };
