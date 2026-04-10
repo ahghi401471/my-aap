@@ -5,7 +5,7 @@ import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
 import { searchNearbyEquipment } from "../services/search";
-import { City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
+import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
 type AppStateContextValue = {
   isHydrated: boolean;
@@ -16,7 +16,13 @@ type AppStateContextValue = {
   myEquipmentIds: string[];
   searchResults: SearchResult[];
   lastSearchMode: SearchMode;
-  updateProfile: (fullName: string, phoneNumber: string, cityId: string) => void;
+  lastSearchSummary: string;
+  updateProfile: (params: {
+    fullName: string;
+    phoneNumber: string;
+    cityId: string;
+    address?: AddressLocation;
+  }) => void;
   updateMyEquipment: (equipmentIds: string[]) => void;
   completeRegistration: () => void;
   setTemporaryLocation: (cityId: string, durationHours: number) => void;
@@ -27,6 +33,7 @@ type AppStateContextValue = {
     cityId?: string;
     lat?: number;
     lng?: number;
+    searchSummary?: string;
   }) => void;
 };
 
@@ -40,6 +47,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>(defaultUser.equipmentIds);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [lastSearchMode, setLastSearchMode] = useState<SearchMode>("city");
+  const [lastSearchSummary, setLastSearchSummary] = useState("לפי המיקום שבחרת");
   const [hasCompletedRegistration, setHasCompletedRegistration] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -113,12 +121,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentUser, hasCompletedRegistration, isHydrated, myEquipmentIds]);
 
-  function updateProfile(fullName: string, phoneNumber: string, cityId: string) {
+  function updateProfile(params: {
+    fullName: string;
+    phoneNumber: string;
+    cityId: string;
+    address?: AddressLocation;
+  }) {
     setCurrentUser((previous) => ({
       ...previous,
-      fullName,
-      phoneNumber,
-      cityId
+      fullName: params.fullName,
+      phoneNumber: params.phoneNumber,
+      cityId: params.cityId,
+      address: params.address
     }));
   }
 
@@ -160,11 +174,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     cityId?: string;
     lat?: number;
     lng?: number;
+    searchSummary?: string;
   }) {
     let baseLat = params.lat;
     let baseLng = params.lng;
 
-    if (params.searchMode === "city") {
+    if (params.searchMode === "city" && (typeof baseLat !== "number" || typeof baseLng !== "number")) {
       const city = cities.find((item) => item.id === params.cityId);
       baseLat = city?.lat;
       baseLng = city?.lng;
@@ -173,6 +188,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (typeof baseLat !== "number" || typeof baseLng !== "number") {
       setSearchResults([]);
       setLastSearchMode(params.searchMode);
+      setLastSearchSummary(params.searchSummary ?? "לפי המיקום שבחרת");
       return;
     }
 
@@ -184,6 +200,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
     setSearchResults(results);
     setLastSearchMode(params.searchMode);
+    setLastSearchSummary(params.searchSummary ?? "לפי המיקום שבחרת");
   }
 
   return (
@@ -197,6 +214,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         myEquipmentIds,
         searchResults,
         lastSearchMode,
+        lastSearchSummary,
         updateProfile,
         updateMyEquipment,
         completeRegistration,

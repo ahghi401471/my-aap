@@ -65,51 +65,23 @@ export function EquipmentPicker({
     return left.localeCompare(right, "he");
   });
 
-  function getSelectedItemForCategory(category: string) {
-    return itemsByCategory[category]?.find((item) => selectedIds.includes(item.id));
-  }
-
-  function updateSelection(category: string, item: EquipmentItem) {
+  function updateSelection(item: EquipmentItem) {
     if (selectionMode === "singleOverall") {
       onChange([item.id]);
       return;
     }
 
-    if (category === "אינסולין") {
-      if (selectedIds.includes(item.id)) {
-        onChange(selectedIds.filter((id) => id !== item.id));
-        return;
-      }
-
-      onChange([...selectedIds, item.id]);
+    if (selectedIds.includes(item.id)) {
+      onChange(selectedIds.filter((id) => id !== item.id));
       return;
     }
 
-    const selectedInCategory = getSelectedItemForCategory(category);
-    const nextIds = selectedIds.filter((id) => id !== selectedInCategory?.id);
-    onChange([...nextIds, item.id]);
+    onChange([...selectedIds, item.id]);
   }
 
   function clearSelection(category: string) {
-    if (selectionMode === "singleOverall") {
-      const categoryIds = (itemsByCategory[category] ?? []).map((item) => item.id);
-      onChange(selectedIds.filter((id) => !categoryIds.includes(id)));
-      return;
-    }
-
-    if (category === "אינסולין") {
-      const insulinIds = (itemsByCategory[category] ?? []).map((item) => item.id);
-      onChange(selectedIds.filter((id) => !insulinIds.includes(id)));
-      return;
-    }
-
-    const selectedInCategory = getSelectedItemForCategory(category);
-
-    if (!selectedInCategory) {
-      return;
-    }
-
-    onChange(selectedIds.filter((id) => id !== selectedInCategory.id));
+    const categoryIds = (itemsByCategory[category] ?? []).map((item) => item.id);
+    onChange(selectedIds.filter((id) => !categoryIds.includes(id)));
   }
 
   return (
@@ -117,7 +89,6 @@ export function EquipmentPicker({
       <Text style={styles.label}>{label}</Text>
 
       {orderedCategories.map((category) => {
-        const selectedItem = getSelectedItemForCategory(category);
         const selectedItems = (itemsByCategory[category] ?? []).filter((item) => selectedIds.includes(item.id));
         const query = queries[category] ?? "";
         const normalizedQuery = query.trim().toLowerCase();
@@ -158,8 +129,12 @@ export function EquipmentPicker({
               ) : null}
             </View>
 
-            {category === "אינסולין" ? (
-              <Text style={styles.multiHint}>ניתן לבחור יותר מסוג אינסולין אחד</Text>
+            {selectionMode !== "singleOverall" ? (
+              <Text style={styles.multiHint}>
+                {category === "אינסולין"
+                  ? "ניתן לבחור יותר מסוג אינסולין אחד"
+                  : "ניתן לבחור יותר מפריט אחד בשורת החיפוש"}
+              </Text>
             ) : null}
 
             {selectedItems.length > 0 ? (
@@ -182,12 +157,12 @@ export function EquipmentPicker({
                       key={item.id}
                       style={styles.option}
                       onPress={() => {
-                        updateSelection(category, item);
+                        updateSelection(item);
                         setQueries((current) => ({
                           ...current,
-                          [category]: category === "אינסולין" ? "" : item.name
+                          [category]: selectionMode === "singleOverall" ? item.name : ""
                         }));
-                        if (category !== "אינסולין") {
+                        if (selectionMode === "singleOverall") {
                           setOpenCategory(null);
                         }
                       }}

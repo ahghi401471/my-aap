@@ -18,7 +18,8 @@ export function MyEquipmentScreen({ navigation }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       <SectionCard title="איזה ציוד יש לך?">
         <Text style={styles.caption}>
-          כל סוגי האינסולין מופיעים בשורת חיפוש אחת, וניתן לבחור יותר מסוג אחד. שאר הציוד מסודר לפי סוג.
+          כל סוג ציוד מופיע בשורת חיפוש משלו, וניתן לבחור יותר מפריט אחד בכל שורה. כל האינסולינים מרוכזים
+          בשורה אחת.
         </Text>
         <EquipmentPicker
           items={equipmentCatalog}

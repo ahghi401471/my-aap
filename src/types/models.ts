@@ -7,6 +7,23 @@ export type City = {
   lng: number;
 };
 
+export type StreetSuggestion = {
+  id: string;
+  name: string;
+  cityName: string;
+  displayName: string;
+  lat: number;
+  lng: number;
+};
+
+export type AddressLocation = {
+  cityId: string;
+  streetName: string;
+  houseNumber: string;
+  lat: number;
+  lng: number;
+};
+
 export type EquipmentItem = {
   id: string;
   name: string;
@@ -24,6 +41,7 @@ export type User = {
   fullName: string;
   phoneNumber: string;
   cityId: string;
+  address?: AddressLocation;
   equipmentIds: string[];
   temporaryLocation?: TemporaryLocation;
 };
@@ -36,6 +54,7 @@ export type RequestRecord = {
   cityId?: string;
   lat?: number;
   lng?: number;
+  address?: AddressLocation;
 };
 
 export type SearchResult = {
@@ -44,4 +63,6 @@ export type SearchResult = {
   equipment: EquipmentItem;
   distanceKm: number;
   locationSource: "home" | "temporary";
+  distanceBasis: "city" | "street";
+  addressLabel?: string;
 };

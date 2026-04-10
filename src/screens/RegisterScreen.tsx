@@ -48,7 +48,8 @@ export function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
         <Text style={styles.helperText}>
-          כל סוגי האינסולין מרוכזים בשורת חיפוש אחת, וניתן לבחור יותר מסוג אינסולין אחד.
+          כל סוג ציוד מופיע בשורת חיפוש משלו, וניתן לבחור יותר מפריט אחד בכל שורה. כל האינסולינים מרוכזים
+          בשורה אחת.
         </Text>
         <EquipmentPicker
           items={equipmentCatalog}

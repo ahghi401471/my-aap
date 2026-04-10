@@ -26,19 +26,27 @@ export function searchNearbyEquipment(options: SearchOptions): SearchResult[] {
 
       const targetCityId = hasActiveTemporaryLocation ? user.temporaryLocation?.cityId : user.cityId;
       const city = cities.find((item) => item.id === targetCityId);
+
       if (!city) {
         return null;
       }
 
-      const distanceKm = calculateDistanceKm(options.baseLat, options.baseLng, city.lat, city.lng);
+      const canUseStreetAddress = !hasActiveTemporaryLocation && user.address && user.address.cityId === user.cityId;
+      const targetLat = canUseStreetAddress ? user.address!.lat : city.lat;
+      const targetLng = canUseStreetAddress ? user.address!.lng : city.lng;
+      const distanceKm = calculateDistanceKm(options.baseLat, options.baseLng, targetLat, targetLng);
 
       return {
         user,
         city,
         equipment,
         distanceKm,
-        locationSource: hasActiveTemporaryLocation ? "temporary" : "home"
-      };
+        locationSource: hasActiveTemporaryLocation ? "temporary" : "home",
+        distanceBasis: canUseStreetAddress ? "street" : "city",
+        addressLabel: canUseStreetAddress
+          ? `${user.address!.streetName}${user.address!.houseNumber ? ` ${user.address!.houseNumber}` : ""}`
+          : undefined
+      } satisfies SearchResult;
     })
     .filter((item): item is SearchResult => item !== null)
     .sort((left, right) => left.distanceKm - right.distanceKm);
