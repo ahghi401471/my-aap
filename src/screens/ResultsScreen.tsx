@@ -11,20 +11,18 @@ import { colors } from "../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
 export function ResultsScreen({ navigation }: Props) {
-  const { searchResults, lastSearchMode } = useAppState();
+  const { searchResults, lastSearchSummary } = useAppState();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.heroCard}>
         <Text style={styles.heroTitle}>התוצאות מסודרות לפי קרבה</Text>
-        <Text style={styles.info}>
-          החיפוש מוין לפי קרבה {lastSearchMode === "gps" ? "למיקום הנוכחי שלך" : "למרכז העיר שבחרת"}.
-        </Text>
+        <Text style={styles.info}>החיפוש מוין {lastSearchSummary}.</Text>
       </View>
 
       {searchResults.length === 0 ? (
         <SectionCard title="לא נמצאו תוצאות">
-          <Text style={styles.emptyText}>נסה ציוד אחר או חפש לפי עיר שונה.</Text>
+          <Text style={styles.emptyText}>לא נמצאו אנשים עם הציוד הזה באזור שבחרת. נסה עיר, רחוב או ציוד אחר.</Text>
         </SectionCard>
       ) : (
         searchResults.map((result) => (
@@ -33,9 +31,19 @@ export function ResultsScreen({ navigation }: Props) {
               <Text style={styles.value}>{result.city.name}</Text>
               <Text style={styles.label}>{result.locationSource === "temporary" ? "מיקום זמני" : "עיר"}</Text>
             </View>
+            {result.addressLabel ? (
+              <View style={styles.resultRow}>
+                <Text style={styles.value}>{result.addressLabel}</Text>
+                <Text style={styles.label}>רחוב</Text>
+              </View>
+            ) : null}
             <View style={styles.resultRow}>
               <Text style={styles.value}>{result.equipment.name}</Text>
               <Text style={styles.label}>ציוד</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.value}>{result.distanceBasis === "street" ? "לפי רחוב" : "לפי עיר"}</Text>
+              <Text style={styles.label}>רמת דיוק</Text>
             </View>
             <View style={styles.resultRow}>
               <Text style={styles.distance}>{result.distanceKm.toFixed(1)} ק"מ</Text>

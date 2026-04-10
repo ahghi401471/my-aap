@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
+import { AutocompleteStreetInput } from "../components/AutocompleteStreetInput";
 import { SectionCard } from "../components/SectionCard";
 import { spacing } from "../constants/spacing";
+import { geocodeStreetAddress } from "../services/streets";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { SearchMode } from "../types/models";
+import { SearchMode, StreetSuggestion } from "../types/models";
 import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "RequestEquipment">;
@@ -29,7 +31,11 @@ export function RequestEquipmentScreen({ navigation }: Props) {
   const [selectedEquipmentId, setSelectedEquipmentId] = useState(availableEquipment[0]?.id ?? "");
   const [searchMode, setSearchMode] = useState<SearchMode>("city");
   const [searchCityId, setSearchCityId] = useState(selectedCity.id);
+  const [searchStreet, setSearchStreet] = useState<StreetSuggestion | null>(null);
+  const [houseNumber, setHouseNumber] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+
+  const searchCity = useMemo(() => cities.find((city) => city.id === searchCityId) ?? selectedCity, [searchCityId, selectedCity]);
 
   async function handleSearch() {
     if (!selectedEquipmentId) {
@@ -42,7 +48,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         const permission = await Location.requestForegroundPermissionsAsync();
 
         if (!permission.granted) {
-          Alert.alert("גישה למיקום נדחתה", "אפשר לבחור במקום זה עיר לחיפוש.");
+          Alert.alert("גישה למיקום נדחתה", "אפשר לעבור לחיפוש לפי עיר ורחוב.");
           return;
         }
 
@@ -52,19 +58,44 @@ export function RequestEquipmentScreen({ navigation }: Props) {
           equipmentId: selectedEquipmentId,
           searchMode: "gps",
           lat: currentPosition.coords.latitude,
-          lng: currentPosition.coords.longitude
+          lng: currentPosition.coords.longitude,
+          searchSummary: "לפי המיקום הנוכחי שלך"
         });
       } catch (error) {
-        Alert.alert("לא הצלחנו לאתר מיקום", "נסה שוב או עבור לבחירת עיר.");
+        Alert.alert("לא הצלחנו לאתר מיקום", "נסה שוב או עבור לבחירת עיר ורחוב.");
         return;
       } finally {
         setIsLoadingLocation(false);
       }
     } else {
+      let baseLat = searchStreet?.lat;
+      let baseLng = searchStreet?.lng;
+      let searchSummary = `לפי ${searchCity.name}`;
+
+      if (searchStreet) {
+        searchSummary = `לפי ${searchCity.name}, ${searchStreet.name}${houseNumber.trim() ? ` ${houseNumber.trim()}` : ""}`;
+      }
+
+      if (searchStreet && houseNumber.trim()) {
+        const exactAddress = await geocodeStreetAddress({
+          cityName: searchCity.name,
+          streetName: searchStreet.name,
+          houseNumber: houseNumber.trim()
+        }).catch(() => null);
+
+        if (exactAddress) {
+          baseLat = exactAddress.lat;
+          baseLng = exactAddress.lng;
+        }
+      }
+
       runSearch({
         equipmentId: selectedEquipmentId,
         searchMode: "city",
-        cityId: searchCityId
+        cityId: searchCityId,
+        lat: baseLat,
+        lng: baseLng,
+        searchSummary
       });
     }
 
@@ -76,7 +107,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       <View style={styles.heroCard}>
         <Text style={styles.heroTitle}>מבקשים ציוד לפי מיקום</Text>
         <Text style={styles.heroSubtitle}>
-          בחר ציוד, בחר GPS או עיר, ונציג קודם את האנשים הכי קרובים אליך.
+          בחר ציוד, בחר GPS או עיר ורחוב, ונציג קודם את האנשים הכי קרובים אליך.
         </Text>
       </View>
 
@@ -142,23 +173,45 @@ export function RequestEquipmentScreen({ navigation }: Props) {
               size={18}
               color={searchMode === "city" ? "#FFFFFF" : colors.text}
             />
-            <Text style={[styles.switchText, searchMode === "city" ? styles.switchTextActive : null]}>
-              בחר עיר
-            </Text>
+            <Text style={[styles.switchText, searchMode === "city" ? styles.switchTextActive : null]}>בחר עיר</Text>
           </Pressable>
         </View>
 
         {searchMode === "city" ? (
-          <AutocompleteCityInput
-            label="עיר לחיפוש"
-            cities={cities}
-            selectedCityId={searchCityId}
-            onSelect={(city) => setSearchCityId(city.id)}
-          />
+          <>
+            <AutocompleteCityInput
+              label="עיר לחיפוש"
+              cities={cities}
+              selectedCityId={searchCityId}
+              onSelect={(city) => {
+                setSearchCityId(city.id);
+                setSearchStreet(null);
+                setHouseNumber("");
+              }}
+            />
+
+            <AutocompleteStreetInput
+              label="רחוב לחיפוש"
+              cityName={searchCity.name}
+              selectedStreet={searchStreet}
+              onSelect={setSearchStreet}
+            />
+
+            <TextInput
+              value={houseNumber}
+              onChangeText={setHouseNumber}
+              placeholder="מספר בית"
+              style={styles.input}
+              keyboardType="number-pad"
+              placeholderTextColor={colors.muted}
+            />
+
+            <Text style={styles.helperText}>
+              אם תבחר גם רחוב, התוצאות ימוין לפי מיקום מדויק יותר. אם לא תבחר רחוב, החיפוש יתבצע לפי מרכז העיר.
+            </Text>
+          </>
         ) : (
-          <Text style={styles.helperText}>
-            האפליקציה תבקש הרשאה ותחשב את הקרבה לפי המיקום האמיתי שלך.
-          </Text>
+          <Text style={styles.helperText}>האפליקציה תבקש הרשאה ותחשב את הקרבה לפי המיקום האמיתי שלך.</Text>
         )}
       </SectionCard>
 
@@ -274,6 +327,16 @@ const styles = StyleSheet.create({
   helperText: {
     color: colors.muted,
     lineHeight: 22
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 15,
+    color: colors.text,
+    fontSize: 16
   },
   primaryButton: {
     backgroundColor: colors.primary,

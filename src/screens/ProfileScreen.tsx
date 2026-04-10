@@ -61,6 +61,14 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.value}>{selectedCity.name}</Text>
           <Text style={styles.label}>עיר</Text>
         </View>
+        <View style={styles.addressBlock}>
+          <Text style={styles.label}>כתובת מגורים</Text>
+          <Text style={styles.addressValue}>
+            {currentUser.address
+              ? `${currentUser.address.streetName}${currentUser.address.houseNumber ? ` ${currentUser.address.houseNumber}` : ""}`
+              : "עדיין לא הוגדרה כתובת מדויקת"}
+          </Text>
+        </View>
         {activeTemporaryLocation && activeTemporaryCity ? (
           <>
             <View style={styles.row}>
@@ -109,9 +117,7 @@ export function ProfileScreen({ navigation }: Props) {
 
         <View style={styles.temporaryBlock}>
           <Text style={styles.temporaryTitle}>מיקום זמני</Text>
-          <Text style={styles.temporarySubtitle}>
-            עדכון זמני לעיר אחרת מופיע כאן מתחת לשורת חיפוש הציוד, ולא כחלק מההרשמה.
-          </Text>
+          <Text style={styles.temporarySubtitle}>עדכון זמני לעיר אחרת מופיע כאן מתחת לאזור החיפוש.</Text>
 
           {activeTemporaryLocation && activeTemporaryCity ? (
             <View style={styles.temporaryInfo}>
@@ -206,6 +212,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.xs
   },
+  addressBlock: {
+    gap: 6,
+    paddingVertical: spacing.xs
+  },
   label: {
     color: colors.muted,
     fontWeight: "600"
@@ -213,6 +223,11 @@ const styles = StyleSheet.create({
   value: {
     color: colors.text,
     fontSize: 18,
+    fontWeight: "700"
+  },
+  addressValue: {
+    color: colors.text,
+    fontSize: 17,
     fontWeight: "700"
   },
   equipmentIntro: {

@@ -17,9 +17,9 @@ export function searchNearbyEquipment(options: SearchOptions): SearchResult[] {
     return [];
   }
 
-  return mockUsers
+  const results = mockUsers
     .filter((user) => user.equipmentIds.includes(options.equipmentId))
-    .map((user) => {
+    .map<SearchResult | null>((user) => {
       const hasActiveTemporaryLocation =
         user.temporaryLocation &&
         new Date(user.temporaryLocation.expiresAt).getTime() > Date.now();
@@ -36,18 +36,23 @@ export function searchNearbyEquipment(options: SearchOptions): SearchResult[] {
       const targetLng = canUseStreetAddress ? user.address!.lng : city.lng;
       const distanceKm = calculateDistanceKm(options.baseLat, options.baseLng, targetLat, targetLng);
 
-      return {
+      const baseResult: SearchResult = {
         user,
         city,
         equipment,
         distanceKm,
         locationSource: hasActiveTemporaryLocation ? "temporary" : "home",
-        distanceBasis: canUseStreetAddress ? "street" : "city",
-        addressLabel: canUseStreetAddress
-          ? `${user.address!.streetName}${user.address!.houseNumber ? ` ${user.address!.houseNumber}` : ""}`
-          : undefined
-      } satisfies SearchResult;
+        distanceBasis: canUseStreetAddress ? "street" : "city"
+      };
+
+      if (canUseStreetAddress) {
+        baseResult.addressLabel = `${user.address!.streetName}${user.address!.houseNumber ? ` ${user.address!.houseNumber}` : ""}`;
+      }
+
+      return baseResult;
     })
     .filter((item): item is SearchResult => item !== null)
     .sort((left, right) => left.distanceKm - right.distanceKm);
+
+  return results;
 }

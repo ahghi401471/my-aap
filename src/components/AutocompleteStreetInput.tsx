@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { spacing } from "../constants/spacing";
@@ -18,12 +18,18 @@ export function AutocompleteStreetInput({ label, cityName, selectedStreet, onSel
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [streets, setStreets] = useState<StreetSuggestion[]>([]);
+  const previousCityName = useRef(cityName);
 
   useEffect(() => {
     setQuery(selectedStreet?.name ?? "");
   }, [selectedStreet?.id, selectedStreet?.name]);
 
   useEffect(() => {
+    if (previousCityName.current === cityName) {
+      return;
+    }
+
+    previousCityName.current = cityName;
     setQuery("");
     setStreets([]);
     setIsOpen(false);

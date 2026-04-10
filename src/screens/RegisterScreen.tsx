@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
+import { AutocompleteStreetInput } from "../components/AutocompleteStreetInput";
 import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
+import { geocodeStreetAddress } from "../services/streets";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { spacing } from "../constants/spacing";
 import { colors } from "../theme/colors";
+import { StreetSuggestion } from "../types/models";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
@@ -19,6 +22,72 @@ export function RegisterScreen({ navigation }: Props) {
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
   const [cityId, setCityId] = useState(selectedCity.id);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
+  const [houseNumber, setHouseNumber] = useState(currentUser.address?.houseNumber ?? "");
+  const [selectedStreet, setSelectedStreet] = useState<StreetSuggestion | null>(
+    currentUser.address
+      ? {
+          id: `${currentUser.address.cityId}-${currentUser.address.streetName}`,
+          name: currentUser.address.streetName,
+          cityName: selectedCity.name,
+          displayName: `${currentUser.address.streetName} ${currentUser.address.houseNumber}, ${selectedCity.name}`,
+          lat: currentUser.address.lat,
+          lng: currentUser.address.lng
+        }
+      : null
+  );
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const selectedCityRecord = useMemo(() => cities.find((city) => city.id === cityId) ?? cities[0], [cityId]);
+
+  async function handleSubmit() {
+    if (selectedEquipmentIds.length === 0 || !phoneNumber.trim()) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+
+    try {
+      let nextAddress = undefined;
+
+      if (selectedStreet) {
+        let lat = selectedStreet.lat;
+        let lng = selectedStreet.lng;
+
+        if (houseNumber.trim()) {
+          const exactAddress = await geocodeStreetAddress({
+            cityName: selectedCityRecord.name,
+            streetName: selectedStreet.name,
+            houseNumber: houseNumber.trim()
+          }).catch(() => null);
+
+          if (exactAddress) {
+            lat = exactAddress.lat;
+            lng = exactAddress.lng;
+          }
+        }
+
+        nextAddress = {
+          cityId,
+          streetName: selectedStreet.name,
+          houseNumber: houseNumber.trim(),
+          lat,
+          lng
+        };
+      }
+
+      updateProfile({
+        fullName: fullName.trim() || currentUser.fullName,
+        phoneNumber: phoneNumber.trim() || currentUser.phoneNumber,
+        cityId,
+        address: nextAddress
+      });
+      updateMyEquipment(selectedEquipmentIds);
+      completeRegistration();
+      navigation.navigate("Profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -26,7 +95,7 @@ export function RegisterScreen({ navigation }: Props) {
         <Text style={styles.heroEyebrow}>ציוד סוכרת קרוב אליך</Text>
         <Text style={styles.heroTitle}>נרשמים פעם אחת ומוצאים עזרה מהר</Text>
         <Text style={styles.heroSubtitle}>
-          בחר עיר, ציוד קבוע ופרטי קשר, והאפליקציה תציג בהמשך אנשים לפי הקרבה אליך.
+          בחר עיר, רחוב, מספר בית, ציוד קבוע ופרטי קשר, והאפליקציה תציג בהמשך אנשים לפי הקרבה המדויקת אליך.
         </Text>
       </View>
 
@@ -43,8 +112,32 @@ export function RegisterScreen({ navigation }: Props) {
           label="עיר"
           cities={cities}
           selectedCityId={cityId}
-          onSelect={(city) => setCityId(city.id)}
+          onSelect={(city) => {
+            setCityId(city.id);
+            setSelectedStreet(null);
+            setHouseNumber("");
+          }}
         />
+
+        <AutocompleteStreetInput
+          label="רחוב מגורים"
+          cityName={selectedCityRecord.name}
+          selectedStreet={selectedStreet}
+          onSelect={setSelectedStreet}
+        />
+
+        <TextInput
+          value={houseNumber}
+          onChangeText={setHouseNumber}
+          placeholder="מספר בית"
+          style={styles.input}
+          keyboardType="number-pad"
+          placeholderTextColor={colors.muted}
+        />
+
+        <Text style={styles.addressHelper}>
+          הרחוב נשלף לפי העיר שבחרת. אם נבחר גם רחוב, הקרבה תחושב בצורה מדויקת יותר מאשר לפי מרכז העיר בלבד.
+        </Text>
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
         <Text style={styles.helperText}>
@@ -70,21 +163,16 @@ export function RegisterScreen({ navigation }: Props) {
         <Pressable
           style={[
             styles.primaryButton,
-            selectedEquipmentIds.length === 0 || !phoneNumber.trim() ? styles.buttonDisabled : null
+            selectedEquipmentIds.length === 0 || !phoneNumber.trim() || isSavingProfile ? styles.buttonDisabled : null
           ]}
-          disabled={selectedEquipmentIds.length === 0 || !phoneNumber.trim()}
-          onPress={() => {
-            updateProfile(
-              fullName.trim() || currentUser.fullName,
-              phoneNumber.trim() || currentUser.phoneNumber,
-              cityId
-            );
-            updateMyEquipment(selectedEquipmentIds);
-            completeRegistration();
-            navigation.navigate("Profile");
-          }}
+          disabled={selectedEquipmentIds.length === 0 || !phoneNumber.trim() || isSavingProfile}
+          onPress={handleSubmit}
         >
-          <Text style={styles.primaryButtonText}>סיום הרשמה</Text>
+          {isSavingProfile ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.primaryButtonText}>סיום הרשמה</Text>
+          )}
         </Pressable>
       </SectionCard>
     </ScrollView>
@@ -128,6 +216,11 @@ const styles = StyleSheet.create({
     color: colors.muted,
     lineHeight: 22
   },
+  addressHelper: {
+    color: colors.secondary,
+    lineHeight: 22,
+    fontWeight: "600"
+  },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 18,
@@ -142,7 +235,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 18,
     paddingVertical: 16,
-    alignItems: "center"
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 56
   },
   buttonDisabled: {
     opacity: 0.5
