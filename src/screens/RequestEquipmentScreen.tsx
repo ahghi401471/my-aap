@@ -85,7 +85,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         searchSummary = `לפי ${searchCity.name}, ${searchStreet.name}${houseNumber.trim() ? ` ${houseNumber.trim()}` : ""}`;
       }
 
-      if (searchStreet && houseNumber.trim()) {
+      if (searchStreet && (houseNumber.trim() || typeof baseLat !== "number" || typeof baseLng !== "number")) {
         const exactAddress = await geocodeStreetAddress({
           cityName: searchCity.name,
           streetName: searchStreet.name,

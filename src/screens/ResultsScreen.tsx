@@ -34,6 +34,12 @@ export function ResultsScreen({ navigation }: Props) {
         <Text style={styles.info}>החיפוש מוין {lastSearchSummary}.</Text>
       </View>
 
+      {groupedResults.length > 0 ? (
+        <Pressable style={styles.mapButton} onPress={() => navigation.navigate("ResultsMap")}>
+          <Text style={styles.mapButtonText}>הצג על המפה את התוצאות</Text>
+        </Pressable>
+      ) : null}
+
       {groupedResults.length === 0 ? (
         <SectionCard title="לא נמצאו תוצאות">
           <Text style={styles.emptyText}>לא נמצאו אנשים עם הציוד הזה באזור שבחרת. נסה עיר, רחוב או ציוד אחר.</Text>
@@ -149,6 +155,17 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontSize: 18,
     fontWeight: "800"
+  },
+  mapButton: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center"
+  },
+  mapButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: "700"
   },
   secondaryButton: {
     backgroundColor: colors.secondarySoft,

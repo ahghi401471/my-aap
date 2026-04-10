@@ -12,8 +12,8 @@ export type StreetSuggestion = {
   name: string;
   cityName: string;
   displayName: string;
-  lat: number;
-  lng: number;
+  lat?: number;
+  lng?: number;
 };
 
 export type AddressLocation = {
