@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
@@ -75,10 +76,12 @@ export function TemporaryLocationScreen({ navigation }: Props) {
           navigation.navigate("Profile");
         }}
       >
+        <MaterialCommunityIcons name="content-save-outline" size={20} color="#FFFFFF" />
         <Text style={styles.primaryButtonText}>שמור מיקום זמני</Text>
       </Pressable>
 
       <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("Profile")}>
+        <MaterialCommunityIcons name="arrow-right-circle-outline" size={18} color={colors.secondary} />
         <Text style={styles.secondaryButtonText}>דלג כרגע</Text>
       </Pressable>
     </ScrollView>
@@ -144,7 +147,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 18,
     paddingVertical: 16,
-    alignItems: "center"
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
   },
   primaryButtonText: {
     color: "#FFFFFF",
@@ -155,7 +161,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondarySoft,
     borderRadius: 18,
     paddingVertical: 15,
-    alignItems: "center"
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
   },
   secondaryButtonText: {
     color: colors.secondary,

@@ -13,7 +13,8 @@ import { colors } from "../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
 export function RegisterScreen({ navigation }: Props) {
-  const { currentUser, myEquipmentIds, selectedCity, updateMyEquipment, updateProfile } = useAppState();
+  const { completeRegistration, currentUser, myEquipmentIds, selectedCity, updateMyEquipment, updateProfile } =
+    useAppState();
   const [fullName, setFullName] = useState(currentUser.fullName);
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
   const [cityId, setCityId] = useState(selectedCity.id);
@@ -47,13 +48,13 @@ export function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
         <Text style={styles.helperText}>
-          לכל סוג ציוד יש שורה משלו, ובתוכה אפשר להתחיל להקליד ולקבל השלמה מתוך הרשימה.
+          כל סוגי האינסולין מרוכזים בשורת חיפוש אחת, וניתן לבחור יותר מסוג אינסולין אחד.
         </Text>
         <EquipmentPicker
           items={equipmentCatalog}
           selectedIds={selectedEquipmentIds}
           onChange={setSelectedEquipmentIds}
-          label="שורה אחת לכל סוג ציוד"
+          label="חיפוש ציוד לפי שורה לכל סוג"
         />
 
         <TextInput
@@ -78,6 +79,7 @@ export function RegisterScreen({ navigation }: Props) {
               cityId
             );
             updateMyEquipment(selectedEquipmentIds);
+            completeRegistration();
             navigation.navigate("Profile");
           }}
         >

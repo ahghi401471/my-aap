@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
@@ -7,6 +8,8 @@ import { searchNearbyEquipment } from "../services/search";
 import { City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
 type AppStateContextValue = {
+  isHydrated: boolean;
+  hasCompletedRegistration: boolean;
   currentUser: User;
   selectedCity: City;
   activeTemporaryCity?: City;
@@ -15,6 +18,7 @@ type AppStateContextValue = {
   lastSearchMode: SearchMode;
   updateProfile: (fullName: string, phoneNumber: string, cityId: string) => void;
   updateMyEquipment: (equipmentIds: string[]) => void;
+  completeRegistration: () => void;
   setTemporaryLocation: (cityId: string, durationHours: number) => void;
   clearTemporaryLocation: () => void;
   runSearch: (params: {
@@ -27,6 +31,7 @@ type AppStateContextValue = {
 };
 
 const defaultUser = mockUsers[0];
+const STORAGE_KEY = "equipment-nearby-app-state";
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
 
@@ -35,6 +40,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>(defaultUser.equipmentIds);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [lastSearchMode, setLastSearchMode] = useState<SearchMode>("city");
+  const [hasCompletedRegistration, setHasCompletedRegistration] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const selectedCity = useMemo(
     () => cities.find((city) => city.id === currentUser.cityId) ?? cities[0],
@@ -60,6 +67,52 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [activeTemporaryLocation?.cityId]
   );
 
+  useEffect(() => {
+    async function hydrateState() {
+      try {
+        const rawState = await AsyncStorage.getItem(STORAGE_KEY);
+
+        if (!rawState) {
+          setIsHydrated(true);
+          return;
+        }
+
+        const parsedState = JSON.parse(rawState) as {
+          currentUser: User;
+          myEquipmentIds: string[];
+          hasCompletedRegistration: boolean;
+        };
+
+        setCurrentUser(parsedState.currentUser);
+        setMyEquipmentIds(parsedState.myEquipmentIds);
+        setHasCompletedRegistration(parsedState.hasCompletedRegistration);
+      } catch (error) {
+        // Ignore corrupted local state and continue with defaults.
+      } finally {
+        setIsHydrated(true);
+      }
+    }
+
+    hydrateState();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        currentUser,
+        myEquipmentIds,
+        hasCompletedRegistration
+      })
+    ).catch(() => {
+      // Ignore persistence failures in MVP mode.
+    });
+  }, [currentUser, hasCompletedRegistration, isHydrated, myEquipmentIds]);
+
   function updateProfile(fullName: string, phoneNumber: string, cityId: string) {
     setCurrentUser((previous) => ({
       ...previous,
@@ -75,6 +128,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ...previous,
       equipmentIds
     }));
+  }
+
+  function completeRegistration() {
+    setHasCompletedRegistration(true);
   }
 
   function setTemporaryLocation(cityId: string, durationHours: number) {
@@ -132,6 +189,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppStateContext.Provider
       value={{
+        isHydrated,
+        hasCompletedRegistration,
         currentUser,
         selectedCity,
         activeTemporaryCity,
@@ -140,6 +199,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         lastSearchMode,
         updateProfile,
         updateMyEquipment,
+        completeRegistration,
         setTemporaryLocation,
         clearTemporaryLocation,
         runSearch

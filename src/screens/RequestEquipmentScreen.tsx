@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
-import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
 import { spacing } from "../constants/spacing";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
@@ -15,8 +15,18 @@ import { colors } from "../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "RequestEquipment">;
 
 export function RequestEquipmentScreen({ navigation }: Props) {
-  const { selectedCity, runSearch } = useAppState();
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState(equipmentCatalog[0]?.id ?? "");
+  const { currentUser, selectedCity, runSearch } = useAppState();
+  const availableEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
+  const groupedEquipment = availableEquipment.reduce<Record<string, typeof availableEquipment>>((groups, item) => {
+    if (!groups[item.category]) {
+      groups[item.category] = [];
+    }
+
+    groups[item.category].push(item);
+    return groups;
+  }, {});
+  const orderedCategories = Object.keys(groupedEquipment).sort((left, right) => left.localeCompare(right, "he"));
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState(availableEquipment[0]?.id ?? "");
   const [searchMode, setSearchMode] = useState<SearchMode>("city");
   const [searchCityId, setSearchCityId] = useState(selectedCity.id);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -72,15 +82,39 @@ export function RequestEquipmentScreen({ navigation }: Props) {
 
       <SectionCard title="מה אתה צריך?">
         <Text style={styles.helperText}>
-          בחר פריט אחד מהרשימה. אפשר לחפש לפי שם האינסולין, הסנסור, המשאבה או סוג הציוד.
+          כאן מוצגים רק סוגי הציוד שהגדרת בפרופיל שלך. בחר בלחיצה אחת את מה שאתה צריך.
         </Text>
-        <EquipmentPicker
-          items={equipmentCatalog}
-          selectedIds={selectedEquipmentId ? [selectedEquipmentId] : []}
-          onChange={(nextIds) => setSelectedEquipmentId(nextIds[0] ?? "")}
-          label="בחירת ציוד מבוקש לפי סוג"
-          selectionMode="singleOverall"
-        />
+        <View style={styles.equipmentSections}>
+          {orderedCategories.map((category) => (
+            <View key={category} style={styles.categorySection}>
+              <View style={styles.categoryHeader}>
+                <MaterialCommunityIcons name="tag-outline" size={14} color={colors.secondary} />
+                <Text style={styles.categoryHeaderText}>{category}</Text>
+              </View>
+
+              <View style={styles.equipmentButtonGroup}>
+                {groupedEquipment[category].map((item) => {
+                  const selected = item.id === selectedEquipmentId;
+
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.equipmentButton, selected ? styles.equipmentButtonSelected : null]}
+                      onPress={() => setSelectedEquipmentId(item.id)}
+                    >
+                      <Text style={[styles.equipmentButtonText, selected ? styles.equipmentButtonTextSelected : null]}>
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+        </View>
+        {availableEquipment.length === 0 ? (
+          <Text style={styles.helperText}>עדיין לא הוגדר ציוד בפרופיל. היכנס לעריכת הפרופיל והוסף ציוד קודם.</Text>
+        ) : null}
       </SectionCard>
 
       <SectionCard title="איך לחפש?">
@@ -89,6 +123,11 @@ export function RequestEquipmentScreen({ navigation }: Props) {
             style={[styles.switchButton, searchMode === "gps" ? styles.switchButtonActive : null]}
             onPress={() => setSearchMode("gps")}
           >
+            <MaterialCommunityIcons
+              name="crosshairs-gps"
+              size={18}
+              color={searchMode === "gps" ? "#FFFFFF" : colors.text}
+            />
             <Text style={[styles.switchText, searchMode === "gps" ? styles.switchTextActive : null]}>
               השתמש במיקום שלי
             </Text>
@@ -98,6 +137,11 @@ export function RequestEquipmentScreen({ navigation }: Props) {
             style={[styles.switchButton, searchMode === "city" ? styles.switchButtonActive : null]}
             onPress={() => setSearchMode("city")}
           >
+            <MaterialCommunityIcons
+              name="map-marker-outline"
+              size={18}
+              color={searchMode === "city" ? "#FFFFFF" : colors.text}
+            />
             <Text style={[styles.switchText, searchMode === "city" ? styles.switchTextActive : null]}>
               בחר עיר
             </Text>
@@ -118,7 +162,15 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         )}
       </SectionCard>
 
-      <Pressable style={styles.primaryButton} onPress={handleSearch} disabled={isLoadingLocation}>
+      <Pressable
+        style={[
+          styles.primaryButton,
+          isLoadingLocation || availableEquipment.length === 0 ? styles.primaryButtonDisabled : null
+        ]}
+        onPress={handleSearch}
+        disabled={isLoadingLocation || availableEquipment.length === 0}
+      >
+        <MaterialCommunityIcons name="map-search-outline" size={20} color="#FFFFFF" />
         <Text style={styles.primaryButtonText}>{isLoadingLocation ? "מאתר מיקום..." : "חפש ציוד קרוב"}</Text>
       </Pressable>
     </ScrollView>
@@ -148,6 +200,50 @@ const styles = StyleSheet.create({
     color: colors.muted,
     lineHeight: 22
   },
+  equipmentSections: {
+    gap: spacing.md
+  },
+  categorySection: {
+    gap: spacing.sm
+  },
+  categoryHeader: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.secondarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  categoryHeaderText: {
+    color: colors.secondary,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  equipmentButtonGroup: {
+    gap: spacing.sm
+  },
+  equipmentButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14
+  },
+  equipmentButtonSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  equipmentButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  equipmentButtonTextSelected: {
+    color: colors.primary
+  },
   switchRow: {
     flexDirection: "row",
     gap: spacing.sm
@@ -159,7 +255,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    alignItems: "center"
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
   },
   switchButtonActive: {
     backgroundColor: colors.primary,
@@ -180,7 +279,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 18,
     paddingVertical: 16,
-    alignItems: "center"
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5
   },
   primaryButtonText: {
     color: "#FFFFFF",

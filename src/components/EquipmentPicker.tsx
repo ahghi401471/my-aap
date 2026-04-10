@@ -13,12 +13,16 @@ type Props = {
   selectionMode?: "singlePerCategory" | "singleOverall";
 };
 
-const categoryOrder = [
+const insulinCategories = [
   "אינסולין מהיר",
   "אינסולין קצר טווח",
   "אינסולין בינוני",
   "אינסולין ארוך טווח",
-  "אינסולין משולב",
+  "אינסולין משולב"
+];
+
+const categoryOrder = [
+  "אינסולין",
   "סנסורי סוכר",
   "משאבות אינסולין",
   "קנולות וסטי החדרה",
@@ -39,11 +43,13 @@ export function EquipmentPicker({
 
   const itemsByCategory = useMemo(() => {
     return items.reduce<Record<string, EquipmentItem[]>>((groups, item) => {
-      if (!groups[item.category]) {
-        groups[item.category] = [];
+      const category = insulinCategories.includes(item.category) ? "אינסולין" : item.category;
+
+      if (!groups[category]) {
+        groups[category] = [];
       }
 
-      groups[item.category].push(item);
+      groups[category].push(item);
       return groups;
     }, {});
   }, [items]);
@@ -69,6 +75,16 @@ export function EquipmentPicker({
       return;
     }
 
+    if (category === "אינסולין") {
+      if (selectedIds.includes(item.id)) {
+        onChange(selectedIds.filter((id) => id !== item.id));
+        return;
+      }
+
+      onChange([...selectedIds, item.id]);
+      return;
+    }
+
     const selectedInCategory = getSelectedItemForCategory(category);
     const nextIds = selectedIds.filter((id) => id !== selectedInCategory?.id);
     onChange([...nextIds, item.id]);
@@ -78,6 +94,12 @@ export function EquipmentPicker({
     if (selectionMode === "singleOverall") {
       const categoryIds = (itemsByCategory[category] ?? []).map((item) => item.id);
       onChange(selectedIds.filter((id) => !categoryIds.includes(id)));
+      return;
+    }
+
+    if (category === "אינסולין") {
+      const insulinIds = (itemsByCategory[category] ?? []).map((item) => item.id);
+      onChange(selectedIds.filter((id) => !insulinIds.includes(id)));
       return;
     }
 
@@ -96,7 +118,8 @@ export function EquipmentPicker({
 
       {orderedCategories.map((category) => {
         const selectedItem = getSelectedItemForCategory(category);
-        const query = queries[category] ?? selectedItem?.name ?? "";
+        const selectedItems = (itemsByCategory[category] ?? []).filter((item) => selectedIds.includes(item.id));
+        const query = queries[category] ?? "";
         const normalizedQuery = query.trim().toLowerCase();
         const filteredItems = normalizedQuery
           ? (itemsByCategory[category] ?? []).filter((item) => item.name.toLowerCase().includes(normalizedQuery))
@@ -114,7 +137,7 @@ export function EquipmentPicker({
                   setOpenCategory(category);
                   setQueries((current) => ({
                     ...current,
-                    [category]: selectedItem ? "" : current[category] ?? ""
+                    [category]: current[category] ?? ""
                   }));
                 }}
                 onChangeText={(value) => {
@@ -128,16 +151,24 @@ export function EquipmentPicker({
                 style={styles.searchInput}
                 placeholderTextColor={colors.muted}
               />
-              {selectedItem ? (
+              {selectedItems.length > 0 ? (
                 <Pressable style={styles.clearButton} onPress={() => clearSelection(category)}>
                   <Text style={styles.clearButtonText}>נקה</Text>
                 </Pressable>
               ) : null}
             </View>
 
-            {selectedItem ? (
-              <View style={styles.selectedBadge}>
-                <Text style={styles.selectedBadgeText}>{selectedItem.name}</Text>
+            {category === "אינסולין" ? (
+              <Text style={styles.multiHint}>ניתן לבחור יותר מסוג אינסולין אחד</Text>
+            ) : null}
+
+            {selectedItems.length > 0 ? (
+              <View style={styles.selectedWrap}>
+                {selectedItems.map((item) => (
+                  <View key={item.id} style={styles.selectedBadge}>
+                    <Text style={styles.selectedBadgeText}>{item.name}</Text>
+                  </View>
+                ))}
               </View>
             ) : null}
 
@@ -154,9 +185,11 @@ export function EquipmentPicker({
                         updateSelection(category, item);
                         setQueries((current) => ({
                           ...current,
-                          [category]: item.name
+                          [category]: category === "אינסולין" ? "" : item.name
                         }));
-                        setOpenCategory(null);
+                        if (category !== "אינסולין") {
+                          setOpenCategory(null);
+                        }
                       }}
                     >
                       <Text style={styles.optionText}>{item.name}</Text>
@@ -230,6 +263,16 @@ const styles = StyleSheet.create({
   selectedBadgeText: {
     color: colors.primary,
     fontWeight: "700"
+  },
+  selectedWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs
+  },
+  multiHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "600"
   },
   dropdown: {
     backgroundColor: colors.surface,
