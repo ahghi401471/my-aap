@@ -1,3 +1,4 @@
+import { streetsByCity } from "../data/streets";
 import { StreetSuggestion } from "../types/models";
 
 type GoogleAutocompletePrediction = {
@@ -150,6 +151,20 @@ export async function searchStreets(cityName: string, query: string): Promise<St
 
   if (!cityName.trim() || normalizedQuery.length < 2) {
     return [];
+  }
+
+  const localStreetRows = streetsByCity[cityName as keyof typeof streetsByCity];
+
+  if (localStreetRows && localStreetRows.length > 0) {
+    return localStreetRows
+      .filter((street) => street.name.includes(normalizedQuery))
+      .slice(0, 8)
+      .map((street) => ({
+        id: street.id,
+        name: street.name,
+        cityName,
+        displayName: `${street.name}, ${cityName}`
+      }));
   }
 
   if (GOOGLE_MAPS_API_KEY) {

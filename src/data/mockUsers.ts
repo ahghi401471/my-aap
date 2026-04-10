@@ -13,7 +13,7 @@ export const mockUsers: User[] = [
       lat: 32.0642,
       lng: 34.7753
     },
-    equipmentIds: ["novorapid", "libre3", "omnipod5", "verioreflect"]
+    equipmentIds: ["novorapid", "libre3", "omnipod5", "verioflex"]
   },
   {
     id: "u2",
@@ -74,7 +74,7 @@ export const mockUsers: User[] = [
       lat: 31.2522,
       lng: 34.7915
     },
-    equipmentIds: ["tresiba", "guardian4", "minimed770g", "quickset", "accuchekinstant"],
+    equipmentIds: ["tresiba", "guardian4", "minimed770g", "quickset", "accuchekguide"],
     temporaryLocation: {
       cityId: "d790d7a9d793d795d793",
       durationHours: 24,

@@ -11,6 +11,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "generate:cities": "node scripts/generate-cities.mjs",
+    "generate:streets": "node scripts/generate-streets.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
