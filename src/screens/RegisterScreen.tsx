@@ -7,9 +7,9 @@ import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
 import { AutocompleteStreetInput } from "../components/AutocompleteStreetInput";
 import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
-import { geocodeStreetAddress } from "../services/streets";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { spacing } from "../constants/spacing";
+import { geocodeStreetAddress } from "../services/streets";
 import { colors } from "../theme/colors";
 import { StreetSuggestion } from "../types/models";
 
@@ -119,6 +119,8 @@ export function RegisterScreen({ navigation }: Props) {
           }}
         />
 
+        <Text style={styles.helperText}>רשימת הערים כוללת את כל ערי ויישובי ישראל.</Text>
+
         <AutocompleteStreetInput
           label="רחוב מגורים"
           cityName={selectedCityRecord.name}
@@ -136,7 +138,7 @@ export function RegisterScreen({ navigation }: Props) {
         />
 
         <Text style={styles.addressHelper}>
-          הרחוב נשלף לפי העיר שבחרת. אם נבחר גם רחוב, הקרבה תחושב בצורה מדויקת יותר מאשר לפי מרכז העיר בלבד.
+          הרחובות נטענים לפי העיר שבחרת. אם נבחר גם רחוב, הקרבה תחושב בצורה מדויקת יותר מאשר לפי מרכז העיר בלבד.
         </Text>
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>

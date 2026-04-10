@@ -28,7 +28,7 @@ type AppStateContextValue = {
   setTemporaryLocation: (cityId: string, durationHours: number) => void;
   clearTemporaryLocation: () => void;
   runSearch: (params: {
-    equipmentId: string;
+    equipmentIds: string[];
     searchMode: SearchMode;
     cityId?: string;
     lat?: number;
@@ -169,7 +169,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }
 
   function runSearch(params: {
-    equipmentId: string;
+    equipmentIds: string[];
     searchMode: SearchMode;
     cityId?: string;
     lat?: number;
@@ -193,7 +193,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
 
     const results = searchNearbyEquipment({
-      equipmentId: params.equipmentId,
+      equipmentIds: params.equipmentIds,
       baseLat,
       baseLng
     }).filter((result) => result.user.id !== currentUser.id);

@@ -13,7 +13,7 @@ export const mockUsers: User[] = [
       lat: 32.0642,
       lng: 34.7753
     },
-    equipmentIds: ["novorapid", "libre3", "omnipod5", "verioreflect", "verioStrips"]
+    equipmentIds: ["novorapid", "libre3", "omnipod5", "verioreflect"]
   },
   {
     id: "u2",
@@ -27,7 +27,7 @@ export const mockUsers: User[] = [
       lat: 32.0727,
       lng: 34.7926
     },
-    equipmentIds: ["lantus", "dexcomg7", "tslimx2", "autosoft90", "contournextone", "contourNextStrips"],
+    equipmentIds: ["lantus", "dexcomg7", "tslimx2", "autosoft90", "contournextone"],
     temporaryLocation: {
       cityId: "d799d7a8d795d7a9d79cd799d79d",
       durationHours: 8,
@@ -46,7 +46,7 @@ export const mockUsers: User[] = [
       lat: 32.8048,
       lng: 34.9896
     },
-    equipmentIds: ["humalog", "minimed780g", "mioadvance", "accuchekguide", "guideStrips"]
+    equipmentIds: ["humalog", "minimed780g", "mioadvance", "accuchekguide"]
   },
   {
     id: "u4",
@@ -60,7 +60,7 @@ export const mockUsers: User[] = [
       lat: 32.0871,
       lng: 34.8876
     },
-    equipmentIds: ["fiasp", "freedomlite", "freestyleLiteStrips", "delicaPlusLancets"]
+    equipmentIds: ["fiasp", "freedomlite", "delicaPlusLancets"]
   },
   {
     id: "u5",
@@ -74,7 +74,7 @@ export const mockUsers: User[] = [
       lat: 31.2522,
       lng: 34.7915
     },
-    equipmentIds: ["tresiba", "guardian4", "minimed770g", "quickset", "accuchekinstant", "instantStrips"],
+    equipmentIds: ["tresiba", "guardian4", "minimed770g", "quickset", "accuchekinstant"],
     temporaryLocation: {
       cityId: "d790d7a9d793d795d793",
       durationHours: 24,
@@ -93,6 +93,6 @@ export const mockUsers: User[] = [
       lat: 31.7684,
       lng: 35.2134
     },
-    equipmentIds: ["apidra", "toujeo", "danai", "orbitmicro", "ultra2", "ultraStrips", "softclixLancets"]
+    equipmentIds: ["apidra", "toujeo", "danai", "orbitmicro", "ultra2", "softclixLancets"]
   }
 ];

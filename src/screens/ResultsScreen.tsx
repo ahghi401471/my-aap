@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -6,12 +6,26 @@ import { SectionCard } from "../components/SectionCard";
 import { spacing } from "../constants/spacing";
 import { useAppState } from "../hooks/useAppState";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { SearchResult } from "../types/models";
 import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 
 export function ResultsScreen({ navigation }: Props) {
   const { searchResults, lastSearchSummary } = useAppState();
+
+  const groupedResults = useMemo(() => {
+    const grouped = searchResults.reduce<Record<string, SearchResult[]>>((accumulator, result) => {
+      if (!accumulator[result.user.id]) {
+        accumulator[result.user.id] = [];
+      }
+
+      accumulator[result.user.id].push(result);
+      return accumulator;
+    }, {});
+
+    return Object.values(grouped).sort((left, right) => left[0].distanceKm - right[0].distanceKm);
+  }, [searchResults]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -20,37 +34,48 @@ export function ResultsScreen({ navigation }: Props) {
         <Text style={styles.info}>החיפוש מוין {lastSearchSummary}.</Text>
       </View>
 
-      {searchResults.length === 0 ? (
+      {groupedResults.length === 0 ? (
         <SectionCard title="לא נמצאו תוצאות">
           <Text style={styles.emptyText}>לא נמצאו אנשים עם הציוד הזה באזור שבחרת. נסה עיר, רחוב או ציוד אחר.</Text>
         </SectionCard>
       ) : (
-        searchResults.map((result) => (
-          <SectionCard key={result.user.id} title={result.user.fullName}>
-            <View style={styles.resultRow}>
-              <Text style={styles.value}>{result.city.name}</Text>
-              <Text style={styles.label}>{result.locationSource === "temporary" ? "מיקום זמני" : "עיר"}</Text>
-            </View>
-            {result.addressLabel ? (
+        groupedResults.map((resultsForUser) => {
+          const firstResult = resultsForUser[0];
+          const equipmentNames = resultsForUser.map((result) => result.equipment.name);
+
+          return (
+            <SectionCard key={firstResult.user.id} title={firstResult.user.fullName}>
               <View style={styles.resultRow}>
-                <Text style={styles.value}>{result.addressLabel}</Text>
-                <Text style={styles.label}>רחוב</Text>
+                <Text style={styles.value}>{firstResult.city.name}</Text>
+                <Text style={styles.label}>{firstResult.locationSource === "temporary" ? "מיקום זמני" : "עיר"}</Text>
               </View>
-            ) : null}
-            <View style={styles.resultRow}>
-              <Text style={styles.value}>{result.equipment.name}</Text>
-              <Text style={styles.label}>ציוד</Text>
-            </View>
-            <View style={styles.resultRow}>
-              <Text style={styles.value}>{result.distanceBasis === "street" ? "לפי רחוב" : "לפי עיר"}</Text>
-              <Text style={styles.label}>רמת דיוק</Text>
-            </View>
-            <View style={styles.resultRow}>
-              <Text style={styles.distance}>{result.distanceKm.toFixed(1)} ק"מ</Text>
-              <Text style={styles.label}>מרחק משוער</Text>
-            </View>
-          </SectionCard>
-        ))
+              {firstResult.addressLabel ? (
+                <View style={styles.resultRow}>
+                  <Text style={styles.value}>{firstResult.addressLabel}</Text>
+                  <Text style={styles.label}>רחוב</Text>
+                </View>
+              ) : null}
+              <View style={styles.equipmentSection}>
+                <Text style={styles.label}>ציוד תואם</Text>
+                <View style={styles.equipmentWrap}>
+                  {equipmentNames.map((equipmentName) => (
+                    <View key={`${firstResult.user.id}-${equipmentName}`} style={styles.equipmentChip}>
+                      <Text style={styles.equipmentChipText}>{equipmentName}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.resultRow}>
+                <Text style={styles.value}>{firstResult.distanceBasis === "street" ? "לפי רחוב" : "לפי עיר"}</Text>
+                <Text style={styles.label}>רמת דיוק</Text>
+              </View>
+              <View style={styles.resultRow}>
+                <Text style={styles.distance}>{firstResult.distanceKm.toFixed(1)} ק"מ</Text>
+                <Text style={styles.label}>מרחק משוער</Text>
+              </View>
+            </SectionCard>
+          );
+        })
       )}
 
       <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("RequestEquipment")}>
@@ -91,6 +116,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 2
+  },
+  equipmentSection: {
+    gap: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  equipmentWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs
+  },
+  equipmentChip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs
+  },
+  equipmentChipText: {
+    color: colors.primary,
+    fontWeight: "700"
   },
   label: {
     color: colors.muted,

@@ -28,17 +28,26 @@ export function RequestEquipmentScreen({ navigation }: Props) {
     return groups;
   }, {});
   const orderedCategories = Object.keys(groupedEquipment).sort((left, right) => left.localeCompare(right, "he"));
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState(availableEquipment[0]?.id ?? "");
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(availableEquipment[0] ? [availableEquipment[0].id] : []);
   const [searchMode, setSearchMode] = useState<SearchMode>("city");
   const [searchCityId, setSearchCityId] = useState(selectedCity.id);
   const [searchStreet, setSearchStreet] = useState<StreetSuggestion | null>(null);
   const [houseNumber, setHouseNumber] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  const searchCity = useMemo(() => cities.find((city) => city.id === searchCityId) ?? selectedCity, [searchCityId, selectedCity]);
+  const searchCity = useMemo(
+    () => cities.find((city) => city.id === searchCityId) ?? selectedCity,
+    [searchCityId, selectedCity]
+  );
+
+  function toggleEquipment(equipmentId: string) {
+    setSelectedEquipmentIds((current) =>
+      current.includes(equipmentId) ? current.filter((id) => id !== equipmentId) : [...current, equipmentId]
+    );
+  }
 
   async function handleSearch() {
-    if (!selectedEquipmentId) {
+    if (selectedEquipmentIds.length === 0) {
       return;
     }
 
@@ -55,7 +64,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         const currentPosition = await Location.getCurrentPositionAsync({});
 
         runSearch({
-          equipmentId: selectedEquipmentId,
+          equipmentIds: selectedEquipmentIds,
           searchMode: "gps",
           lat: currentPosition.coords.latitude,
           lng: currentPosition.coords.longitude,
@@ -90,7 +99,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       }
 
       runSearch({
-        equipmentId: selectedEquipmentId,
+        equipmentIds: selectedEquipmentIds,
         searchMode: "city",
         cityId: searchCityId,
         lat: baseLat,
@@ -107,13 +116,13 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       <View style={styles.heroCard}>
         <Text style={styles.heroTitle}>מבקשים ציוד לפי מיקום</Text>
         <Text style={styles.heroSubtitle}>
-          בחר ציוד, בחר GPS או עיר ורחוב, ונציג קודם את האנשים הכי קרובים אליך.
+          בחר פריט אחד או יותר, בחר GPS או עיר ורחוב, ונציג קודם את האנשים הכי קרובים אליך.
         </Text>
       </View>
 
       <SectionCard title="מה אתה צריך?">
         <Text style={styles.helperText}>
-          כאן מוצגים רק סוגי הציוד שהגדרת בפרופיל שלך. בחר בלחיצה אחת את מה שאתה צריך.
+          כאן מוצגים רק סוגי הציוד שהגדרת בפרופיל שלך. אפשר לבחור יותר מפריט אחד, למשל גם אינסולין וגם סנסור.
         </Text>
         <View style={styles.equipmentSections}>
           {orderedCategories.map((category) => (
@@ -125,13 +134,13 @@ export function RequestEquipmentScreen({ navigation }: Props) {
 
               <View style={styles.equipmentButtonGroup}>
                 {groupedEquipment[category].map((item) => {
-                  const selected = item.id === selectedEquipmentId;
+                  const selected = selectedEquipmentIds.includes(item.id);
 
                   return (
                     <Pressable
                       key={item.id}
                       style={[styles.equipmentButton, selected ? styles.equipmentButtonSelected : null]}
-                      onPress={() => setSelectedEquipmentId(item.id)}
+                      onPress={() => toggleEquipment(item.id)}
                     >
                       <Text style={[styles.equipmentButtonText, selected ? styles.equipmentButtonTextSelected : null]}>
                         {item.name}
@@ -190,6 +199,8 @@ export function RequestEquipmentScreen({ navigation }: Props) {
               }}
             />
 
+            <Text style={styles.helperText}>אפשר לבחור כל עיר או יישוב מתוך רשימת הערים המלאה של ישראל.</Text>
+
             <AutocompleteStreetInput
               label="רחוב לחיפוש"
               cityName={searchCity.name}
@@ -207,7 +218,8 @@ export function RequestEquipmentScreen({ navigation }: Props) {
             />
 
             <Text style={styles.helperText}>
-              אם תבחר גם רחוב, התוצאות ימוין לפי מיקום מדויק יותר. אם לא תבחר רחוב, החיפוש יתבצע לפי מרכז העיר.
+              הרחובות נטענים לפי העיר שבחרת. אם תבחר גם רחוב, התוצאות ימוין לפי מיקום מדויק יותר. אם לא תבחר
+              רחוב, החיפוש יתבצע לפי מרכז העיר.
             </Text>
           </>
         ) : (
@@ -218,10 +230,12 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       <Pressable
         style={[
           styles.primaryButton,
-          isLoadingLocation || availableEquipment.length === 0 ? styles.primaryButtonDisabled : null
+          isLoadingLocation || availableEquipment.length === 0 || selectedEquipmentIds.length === 0
+            ? styles.primaryButtonDisabled
+            : null
         ]}
         onPress={handleSearch}
-        disabled={isLoadingLocation || availableEquipment.length === 0}
+        disabled={isLoadingLocation || availableEquipment.length === 0 || selectedEquipmentIds.length === 0}
       >
         <MaterialCommunityIcons name="map-search-outline" size={20} color="#FFFFFF" />
         <Text style={styles.primaryButtonText}>{isLoadingLocation ? "מאתר מיקום..." : "חפש ציוד קרוב"}</Text>

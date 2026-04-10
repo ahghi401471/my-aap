@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { City } from "../types/models";
 import { spacing } from "../constants/spacing";
 import { colors } from "../theme/colors";
+import { City } from "../types/models";
 
 type Props = {
   label: string;
@@ -35,7 +35,7 @@ export function AutocompleteCityInput({ label, cities, selectedCityId, onSelect 
           setIsOpen(true);
         }}
         onFocus={() => setIsOpen(true)}
-        placeholder="התחל להקליד עיר"
+        placeholder="התחל להקליד עיר מכל ישראל"
         style={styles.input}
         placeholderTextColor={colors.muted}
       />

@@ -48,7 +48,7 @@ export type User = {
 
 export type RequestRecord = {
   id: string;
-  equipmentId: string;
+  equipmentIds: string[];
   searchMode: SearchMode;
   requesterUserId: string;
   cityId?: string;
