@@ -8,40 +8,37 @@ import { EquipmentItem } from "../types/models";
 type Props = {
   items: EquipmentItem[];
   selectedIds: string[];
-  onToggle: (equipmentId: string) => void;
+  onChange: (nextSelectedIds: string[]) => void;
   label?: string;
-  multiSelect?: boolean;
+  selectionMode?: "singlePerCategory" | "singleOverall";
 };
+
+const categoryOrder = [
+  "אינסולין מהיר",
+  "אינסולין קצר טווח",
+  "אינסולין בינוני",
+  "אינסולין ארוך טווח",
+  "אינסולין משולב",
+  "סנסורי סוכר",
+  "משאבות אינסולין",
+  "קנולות וסטי החדרה",
+  "גלוקומטרים",
+  "סטיקים לגלוקומטר",
+  "לנסטים ודוקרים"
+];
 
 export function EquipmentPicker({
   items,
   selectedIds,
-  onToggle,
-  label = "חיפוש ציוד",
-  multiSelect = true
+  onChange,
+  label = "בחירת ציוד",
+  selectionMode = "singlePerCategory"
 }: Props) {
-  const [query, setQuery] = useState("");
-  const categoryOrder = [
-    "אינסולין מהיר",
-    "אינסולין בזאלי",
-    "סנסורי סוכר",
-    "משאבות אינסולין",
-    "קנולות וסטי החדרה",
-    "גלוקומטרים",
-    "סטיקים לגלוקומטר",
-    "לנסטים ודוקרים"
-  ];
+  const [queries, setQueries] = useState<Record<string, string>>({});
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
-  const groupedItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filteredItems = normalizedQuery
-      ? items.filter((item) => {
-          const haystack = `${item.name} ${item.category}`.toLowerCase();
-          return haystack.includes(normalizedQuery);
-        })
-      : items;
-
-    return filteredItems.reduce<Record<string, EquipmentItem[]>>((groups, item) => {
+  const itemsByCategory = useMemo(() => {
+    return items.reduce<Record<string, EquipmentItem[]>>((groups, item) => {
       if (!groups[item.category]) {
         groups[item.category] = [];
       }
@@ -49,9 +46,9 @@ export function EquipmentPicker({
       groups[item.category].push(item);
       return groups;
     }, {});
-  }, [items, query]);
+  }, [items]);
 
-  const categories = Object.keys(groupedItems).sort((left, right) => {
+  const orderedCategories = Object.keys(itemsByCategory).sort((left, right) => {
     const leftIndex = categoryOrder.indexOf(left);
     const rightIndex = categoryOrder.indexOf(right);
 
@@ -62,67 +59,143 @@ export function EquipmentPicker({
     return left.localeCompare(right, "he");
   });
 
+  function getSelectedItemForCategory(category: string) {
+    return itemsByCategory[category]?.find((item) => selectedIds.includes(item.id));
+  }
+
+  function updateSelection(category: string, item: EquipmentItem) {
+    if (selectionMode === "singleOverall") {
+      onChange([item.id]);
+      return;
+    }
+
+    const selectedInCategory = getSelectedItemForCategory(category);
+    const nextIds = selectedIds.filter((id) => id !== selectedInCategory?.id);
+    onChange([...nextIds, item.id]);
+  }
+
+  function clearSelection(category: string) {
+    if (selectionMode === "singleOverall") {
+      const categoryIds = (itemsByCategory[category] ?? []).map((item) => item.id);
+      onChange(selectedIds.filter((id) => !categoryIds.includes(id)));
+      return;
+    }
+
+    const selectedInCategory = getSelectedItemForCategory(category);
+
+    if (!selectedInCategory) {
+      return;
+    }
+
+    onChange(selectedIds.filter((id) => id !== selectedInCategory.id));
+  }
+
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder="חפש אינסולין, סנסור, משאבה או ציוד"
-        style={styles.searchInput}
-        placeholderTextColor={colors.muted}
-      />
 
-      <View style={styles.resultsContainer}>
-        {categories.length === 0 ? (
-          <Text style={styles.emptyText}>לא נמצאו פריטים ברשימה</Text>
-        ) : (
-          categories.map((category) => (
-            <View key={category} style={styles.section}>
-              <Text style={styles.sectionTitle}>{category}</Text>
-              <View style={styles.list}>
-                {groupedItems[category].map((item) => {
-                  const selected = selectedIds.includes(item.id);
+      {orderedCategories.map((category) => {
+        const selectedItem = getSelectedItemForCategory(category);
+        const query = queries[category] ?? selectedItem?.name ?? "";
+        const normalizedQuery = query.trim().toLowerCase();
+        const filteredItems = normalizedQuery
+          ? (itemsByCategory[category] ?? []).filter((item) => item.name.toLowerCase().includes(normalizedQuery))
+          : (itemsByCategory[category] ?? []).slice(0, 8);
 
-                  return (
+        const isOpen = openCategory === category;
+
+        return (
+          <View key={category} style={styles.section}>
+            <Text style={styles.sectionTitle}>{category}</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                value={query}
+                onFocus={() => {
+                  setOpenCategory(category);
+                  setQueries((current) => ({
+                    ...current,
+                    [category]: selectedItem ? "" : current[category] ?? ""
+                  }));
+                }}
+                onChangeText={(value) => {
+                  setOpenCategory(category);
+                  setQueries((current) => ({
+                    ...current,
+                    [category]: value
+                  }));
+                }}
+                placeholder={`חפש ${category}`}
+                style={styles.searchInput}
+                placeholderTextColor={colors.muted}
+              />
+              {selectedItem ? (
+                <Pressable style={styles.clearButton} onPress={() => clearSelection(category)}>
+                  <Text style={styles.clearButtonText}>נקה</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {selectedItem ? (
+              <View style={styles.selectedBadge}>
+                <Text style={styles.selectedBadgeText}>{selectedItem.name}</Text>
+              </View>
+            ) : null}
+
+            {isOpen ? (
+              <View style={styles.dropdown}>
+                {filteredItems.length === 0 ? (
+                  <Text style={styles.emptyText}>לא נמצאו התאמות</Text>
+                ) : (
+                  filteredItems.map((item) => (
                     <Pressable
                       key={item.id}
-                      style={[styles.row, selected ? styles.rowSelected : null]}
-                      onPress={() => onToggle(item.id)}
+                      style={styles.option}
+                      onPress={() => {
+                        updateSelection(category, item);
+                        setQueries((current) => ({
+                          ...current,
+                          [category]: item.name
+                        }));
+                        setOpenCategory(null);
+                      }}
                     >
-                      <View style={[styles.marker, selected ? styles.markerSelected : null]}>
-                        <Text style={styles.markerText}>
-                          {selected ? "✓" : multiSelect ? "+" : "○"}
-                        </Text>
-                      </View>
-                      <View style={styles.rowTextContainer}>
-                        <Text style={[styles.rowTitle, selected ? styles.rowTitleSelected : null]}>
-                          {item.name}
-                        </Text>
-                        <Text style={styles.rowSubtitle}>{selected ? "נבחר" : "הקש לבחירה"}</Text>
-                      </View>
+                      <Text style={styles.optionText}>{item.name}</Text>
                     </Pressable>
-                  );
-                })}
+                  ))
+                )}
               </View>
-            </View>
-          ))
-        )}
-      </View>
+            ) : null}
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: spacing.sm
+    gap: spacing.md
   },
   label: {
     fontSize: 14,
     color: colors.muted,
     fontWeight: "600"
   },
+  section: {
+    gap: spacing.xs
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  inputRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "center"
+  },
   searchInput: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -137,80 +210,49 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 2
   },
-  resultsContainer: {
-    gap: spacing.md
-  },
-  section: {
-    gap: spacing.sm
-  },
-  sectionTitle: {
-    color: colors.secondary,
-    fontWeight: "800",
-    fontSize: 15,
+  clearButton: {
     backgroundColor: colors.secondarySoft,
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 999
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderRadius: 14
   },
-  list: {
+  clearButtonText: {
+    color: colors.secondary,
+    fontWeight: "700"
+  },
+  selectedBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs
+  },
+  selectedBadgeText: {
+    color: colors.primary,
+    fontWeight: "700"
+  },
+  dropdown: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: "hidden",
     shadowColor: colors.shadow,
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+  option: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.border
   },
-  rowSelected: {
-    backgroundColor: colors.primarySoft
-  },
-  marker: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.card
-  },
-  markerSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  markerText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-    fontSize: 14
-  },
-  rowTextContainer: {
-    flex: 1,
-    gap: 2
-  },
-  rowTitle: {
+  optionText: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: "700"
-  },
-  rowTitleSelected: {
-    color: colors.primary
-  },
-  rowSubtitle: {
-    color: colors.muted,
-    fontSize: 12
+    fontWeight: "600"
   },
   emptyText: {
     color: colors.muted,

@@ -14,22 +14,18 @@ type Props = NativeStackScreenProps<RootStackParamList, "MyEquipment">;
 export function MyEquipmentScreen({ navigation }: Props) {
   const { myEquipmentIds, updateMyEquipment } = useAppState();
 
-  function toggleEquipment(equipmentId: string) {
-    if (myEquipmentIds.includes(equipmentId)) {
-      updateMyEquipment(myEquipmentIds.filter((item) => item !== equipmentId));
-      return;
-    }
-
-    updateMyEquipment([...myEquipmentIds, equipmentId]);
-  }
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <SectionCard title="איזה ציוד יש לך?">
         <Text style={styles.caption}>
           בחר את סוגי האינסולין והציוד הרפואי שאתה משתמש בהם. אפשר לעדכן כאן בכל שלב.
         </Text>
-        <EquipmentPicker items={equipmentCatalog} selectedIds={myEquipmentIds} onToggle={toggleEquipment} />
+        <EquipmentPicker
+          items={equipmentCatalog}
+          selectedIds={myEquipmentIds}
+          onChange={updateMyEquipment}
+          label="עדכון ציוד לפי סוג"
+        />
       </SectionCard>
 
       <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("RequestEquipment")}>

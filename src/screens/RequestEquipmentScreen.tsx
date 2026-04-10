@@ -77,9 +77,9 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         <EquipmentPicker
           items={equipmentCatalog}
           selectedIds={selectedEquipmentId ? [selectedEquipmentId] : []}
-          onToggle={(equipmentId) => setSelectedEquipmentId(equipmentId)}
-          label="חיפוש ציוד מבוקש"
-          multiSelect={false}
+          onChange={(nextIds) => setSelectedEquipmentId(nextIds[0] ?? "")}
+          label="בחירת ציוד מבוקש לפי סוג"
+          selectionMode="singleOverall"
         />
       </SectionCard>
 

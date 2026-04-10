@@ -55,22 +55,41 @@ export function ProfileScreen({ navigation }: Props) {
 
       <SectionCard title="פעולות">
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("RequestEquipment")}>
-          <Text style={styles.primaryButtonText}>בקשת ציוד</Text>
+          <Text style={styles.primaryButtonText}>חיפוש ובקשת ציוד</Text>
         </Pressable>
+
+        <View style={styles.temporaryBlock}>
+          <Text style={styles.temporaryTitle}>מיקום זמני</Text>
+          <Text style={styles.temporarySubtitle}>
+            עדכון זמני לעיר אחרת מופיע כאן מתחת לשורת חיפוש הציוד, ולא כחלק מההרשמה.
+          </Text>
+
+          {activeTemporaryLocation && activeTemporaryCity ? (
+            <View style={styles.temporaryInfo}>
+              <Text style={styles.temporaryInfoText}>
+                פעיל עכשיו: {activeTemporaryCity.name} למשך {activeTemporaryLocation.durationHours} שעות
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.temporaryInfo}>
+              <Text style={styles.temporaryInfoText}>אין כרגע מיקום זמני פעיל</Text>
+            </View>
+          )}
+
+          <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("TemporaryLocation")}>
+            <Text style={styles.secondaryButtonText}>הגדרת מיקום זמני</Text>
+          </Pressable>
+
+          {activeTemporaryLocation ? (
+            <Pressable style={styles.ghostButton} onPress={clearTemporaryLocation}>
+              <Text style={styles.ghostButtonText}>נקה מיקום זמני</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("Register")}>
           <Text style={styles.secondaryButtonText}>עריכת פרופיל משתמש</Text>
         </Pressable>
-
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("TemporaryLocation")}>
-          <Text style={styles.secondaryButtonText}>דיווח על מיקום נוסף</Text>
-        </Pressable>
-
-        {activeTemporaryLocation ? (
-          <Pressable style={styles.ghostButton} onPress={clearTemporaryLocation}>
-            <Text style={styles.ghostButtonText}>נקה מיקום זמני</Text>
-          </Pressable>
-        ) : null}
 
         <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("MyEquipment")}>
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
@@ -136,6 +155,35 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 15,
     alignItems: "center"
+  },
+  temporaryBlock: {
+    gap: spacing.sm,
+    backgroundColor: colors.infoSoft,
+    borderRadius: 20,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: "#D4E4FF"
+  },
+  temporaryTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "800"
+  },
+  temporarySubtitle: {
+    color: colors.muted,
+    lineHeight: 21
+  },
+  temporaryInfo: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  temporaryInfoText: {
+    color: colors.text,
+    fontWeight: "600"
   },
   ghostButton: {
     backgroundColor: colors.surface,

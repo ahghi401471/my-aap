@@ -19,15 +19,6 @@ export function RegisterScreen({ navigation }: Props) {
   const [cityId, setCityId] = useState(selectedCity.id);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
 
-  function toggleEquipment(equipmentId: string) {
-    if (selectedEquipmentIds.includes(equipmentId)) {
-      setSelectedEquipmentIds(selectedEquipmentIds.filter((item) => item !== equipmentId));
-      return;
-    }
-
-    setSelectedEquipmentIds([...selectedEquipmentIds, equipmentId]);
-  }
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.heroCard}>
@@ -56,12 +47,13 @@ export function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
         <Text style={styles.helperText}>
-          אפשר לבחור כמה סוגים. שמות האינסולין מוצגים בעברית ובסוגריים באנגלית.
+          לכל סוג ציוד יש שורה משלו, ובתוכה אפשר להתחיל להקליד ולקבל השלמה מתוך הרשימה.
         </Text>
         <EquipmentPicker
           items={equipmentCatalog}
           selectedIds={selectedEquipmentIds}
-          onToggle={toggleEquipment}
+          onChange={setSelectedEquipmentIds}
+          label="שורה אחת לכל סוג ציוד"
         />
 
         <TextInput
@@ -86,10 +78,10 @@ export function RegisterScreen({ navigation }: Props) {
               cityId
             );
             updateMyEquipment(selectedEquipmentIds);
-            navigation.navigate("TemporaryLocation");
+            navigation.navigate("Profile");
           }}
         >
-          <Text style={styles.primaryButtonText}>המשך למיקום זמני</Text>
+          <Text style={styles.primaryButtonText}>סיום הרשמה</Text>
         </Pressable>
       </SectionCard>
     </ScrollView>
