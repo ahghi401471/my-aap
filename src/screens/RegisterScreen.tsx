@@ -50,8 +50,8 @@ export function RegisterScreen({ navigation }: Props) {
       let nextAddress = undefined;
 
       if (selectedStreet) {
-        let lat = selectedStreet.lat;
-        let lng = selectedStreet.lng;
+        let lat = selectedStreet.lat ?? selectedCityRecord.lat;
+        let lng = selectedStreet.lng ?? selectedCityRecord.lng;
 
         if (houseNumber.trim() || typeof lat !== "number" || typeof lng !== "number") {
           const exactAddress = await geocodeStreetAddress({
@@ -64,10 +64,6 @@ export function RegisterScreen({ navigation }: Props) {
             lat = exactAddress.lat;
             lng = exactAddress.lng;
           }
-        }
-
-        if (typeof lat !== "number" || typeof lng !== "number") {
-          return;
         }
 
         nextAddress = {
