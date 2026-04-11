@@ -2,6 +2,7 @@ import { cities } from "../src/data/cities";
 import { streetsByCity } from "../src/data/streets";
 import { equipmentCatalog } from "../src/data/equipment";
 import { mockUsers } from "../src/data/mockUsers";
+import { hashPassword } from "./auth";
 import { getDb, persistDb } from "./db";
 import { migrationSql, schemaSql } from "./schema";
 
@@ -33,13 +34,15 @@ export async function seedDatabase() {
   for (const user of mockUsers) {
     await db.execute(
       `INSERT INTO users (
-        id, full_name, phone_number, city_id, street_name, house_number, lat, lng,
+        id, full_name, username, password_hash, phone_number, city_id, street_name, house_number, lat, lng,
         temporary_city_id, temporary_duration_hours, temporary_expires_at
       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         user.fullName,
+        `demo_${user.id.slice(0, 8)}`,
+        hashPassword("Demo1234!"),
         user.phoneNumber,
         user.cityId,
         user.address?.streetName ?? null,

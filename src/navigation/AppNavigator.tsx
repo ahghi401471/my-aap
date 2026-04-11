@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, View } from "react-native";
 
 import { AppStateProvider, useAppState } from "../hooks/useAppState";
+import { LoginScreen } from "../screens/LoginScreen";
 import { MyEquipmentScreen } from "../screens/MyEquipmentScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
@@ -14,6 +15,7 @@ import { TemporaryLocationScreen } from "../screens/TemporaryLocationScreen";
 import { colors } from "../theme/colors";
 
 export type RootStackParamList = {
+  Login: undefined;
   Register: undefined;
   TemporaryLocation: undefined;
   Profile: undefined;
@@ -58,14 +60,15 @@ function NavigatorContent() {
   return (
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator
-        initialRouteName={hasCompletedRegistration ? "Profile" : "Register"}
+        initialRouteName={hasCompletedRegistration ? "Profile" : "Login"}
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           contentStyle: { backgroundColor: colors.background }
         }}
       >
-        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "הרשמה", headerShown: !hasCompletedRegistration }} />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ title: "כניסה", headerShown: !hasCompletedRegistration }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "הרשמה" }} />
         <Stack.Screen name="TemporaryLocation" component={TemporaryLocationScreen} options={{ title: "מיקום זמני" }} />
         <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "דף הבית", headerBackVisible: false }} />
         <Stack.Screen name="MyEquipment" component={MyEquipmentScreen} options={{ title: "הציוד שלי" }} />

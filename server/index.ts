@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { cities } from "../src/data/cities";
 import { calculateDistanceKm } from "../src/services/distance";
+import { hashPassword, verifyPassword } from "./auth";
 import { getDb, persistDb } from "./db";
 import { seedDatabase } from "./seed";
 
@@ -67,6 +68,7 @@ app.get("/api/users/:id", async (request, response) => {
   const users = await rowsFromQuery<{
     id: string;
     full_name: string;
+    username: string | null;
     phone_number: string;
     city_id: string;
     street_name: string | null;
@@ -93,6 +95,7 @@ app.get("/api/users/:id", async (request, response) => {
   response.json({
     id: user.id,
     fullName: user.full_name,
+    username: user.username ?? undefined,
     phoneNumber: user.phone_number,
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
@@ -119,6 +122,8 @@ app.get("/api/users/:id", async (request, response) => {
 app.post("/api/users/register", async (request, response) => {
   const {
     fullName,
+    username,
+    password,
     phoneNumber,
     cityId,
     streetName,
@@ -129,6 +134,8 @@ app.post("/api/users/register", async (request, response) => {
     temporaryLocation
   } = request.body as {
     fullName: string;
+    username: string;
+    password: string;
     phoneNumber: string;
     cityId: string;
     streetName?: string;
@@ -143,23 +150,43 @@ app.post("/api/users/register", async (request, response) => {
     };
   };
 
-  if (!fullName?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
+  if (
+    !fullName?.trim() ||
+    !username?.trim() ||
+    !password?.trim() ||
+    password.trim().length < 6 ||
+    !phoneNumber?.trim() ||
+    !cityId ||
+    !Array.isArray(equipmentIds) ||
+    equipmentIds.length === 0
+  ) {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
 
   const userId = randomUUID();
   const db = await getDb();
+  const existingUsername = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+    [username.trim()]
+  )();
+
+  if (existingUsername.length > 0) {
+    response.status(409).json({ message: "Username already exists" });
+    return;
+  }
 
   await db.execute(
     `INSERT INTO users (
-      id, full_name, phone_number, city_id, street_name, house_number, lat, lng,
+      id, full_name, username, password_hash, phone_number, city_id, street_name, house_number, lat, lng,
       temporary_city_id, temporary_duration_hours, temporary_expires_at
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       fullName.trim(),
+      username.trim(),
+      hashPassword(password.trim()),
       phoneNumber.trim(),
       cityId,
       streetName ?? null,
@@ -184,6 +211,8 @@ app.put("/api/users/:id", async (request, response) => {
   const userId = request.params.id;
   const {
     fullName,
+    username,
+    password,
     phoneNumber,
     cityId,
     streetName,
@@ -194,6 +223,8 @@ app.put("/api/users/:id", async (request, response) => {
     temporaryLocation
   } = request.body as {
     fullName: string;
+    username: string;
+    password?: string;
     phoneNumber: string;
     cityId: string;
     streetName?: string;
@@ -208,26 +239,45 @@ app.put("/api/users/:id", async (request, response) => {
     };
   };
 
-  if (!fullName?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
+  if (!fullName?.trim() || !username?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
 
   const db = await getDb();
-  const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();
+  const existingUser = await rowsFromQuery<{ id: string; password_hash: string | null }>(
+    "SELECT id, password_hash FROM users WHERE id = ?",
+    [userId]
+  )();
 
   if (existingUser.length === 0) {
     response.status(404).json({ message: "User not found" });
     return;
   }
 
+  const existingUsername = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id <> ?",
+    [username.trim(), userId]
+  )();
+
+  if (existingUsername.length > 0) {
+    response.status(409).json({ message: "Username already exists" });
+    return;
+  }
+
+  const nextPasswordHash = password?.trim()
+    ? hashPassword(password.trim())
+    : existingUser[0].password_hash;
+
   await db.execute(
     `UPDATE users
-     SET full_name = ?, phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
+     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
          temporary_city_id = ?, temporary_duration_hours = ?, temporary_expires_at = ?
      WHERE id = ?`,
     [
       fullName.trim(),
+      username.trim(),
+      nextPasswordHash ?? null,
       phoneNumber.trim(),
       cityId,
       streetName ?? null,
@@ -251,6 +301,72 @@ app.put("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
+app.post("/api/auth/login", async (request, response) => {
+  const { username, password } = request.body as {
+    username: string;
+    password: string;
+  };
+
+  if (!username?.trim() || !password?.trim()) {
+    response.status(400).json({ message: "Missing credentials" });
+    return;
+  }
+
+  const users = await rowsFromQuery<{
+    id: string;
+    full_name: string;
+    username: string | null;
+    password_hash: string | null;
+    phone_number: string;
+    city_id: string;
+    street_name: string | null;
+    house_number: string | null;
+    lat: number | null;
+    lng: number | null;
+    temporary_city_id: string | null;
+    temporary_duration_hours: number | null;
+    temporary_expires_at: string | null;
+  }>("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", [username.trim()])();
+
+  const user = users[0];
+
+  if (!user?.password_hash || !verifyPassword(password.trim(), user.password_hash)) {
+    response.status(401).json({ message: "Invalid username or password" });
+    return;
+  }
+
+  const equipment = await rowsFromQuery<{ equipment_id: string }>(
+    "SELECT equipment_id FROM user_equipment WHERE user_id = ?",
+    [user.id]
+  )();
+
+  response.json({
+    id: user.id,
+    fullName: user.full_name,
+    username: user.username ?? undefined,
+    phoneNumber: user.phone_number,
+    cityId: user.city_id,
+    equipmentIds: equipment.map((item) => item.equipment_id),
+    address: user.street_name
+      ? {
+          cityId: user.city_id,
+          streetName: user.street_name,
+          houseNumber: user.house_number ?? "",
+          lat: user.lat,
+          lng: user.lng
+        }
+      : undefined,
+    temporaryLocation:
+      user.temporary_city_id && user.temporary_expires_at
+        ? {
+            cityId: user.temporary_city_id,
+            durationHours: user.temporary_duration_hours ?? 0,
+            expiresAt: user.temporary_expires_at
+          }
+        : undefined
+  });
+});
+
 app.delete("/api/users/:id", async (request, response) => {
   const userId = request.params.id;
   const db = await getDb();
@@ -262,7 +378,6 @@ app.delete("/api/users/:id", async (request, response) => {
   }
 
   await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
-  await db.execute("DELETE FROM requests WHERE requester_user_id = ?", [userId]);
   await db.execute("DELETE FROM users WHERE id = ?", [userId]);
 
   await persistDb();
@@ -379,26 +494,6 @@ app.post("/api/requests/search", async (request, response) => {
       }));
     })
     .sort((left, right) => left.distanceKm - right.distanceKm);
-
-  const requestId = randomUUID();
-  const db = await getDb();
-  await db.execute(
-    `INSERT INTO requests (id, requester_user_id, equipment_ids_json, search_mode, city_id, street_name, house_number, lat, lng, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      requestId,
-      requesterUserId ?? "anonymous",
-      JSON.stringify(equipmentIds),
-      searchMode,
-      cityId ?? null,
-      streetName ?? null,
-      houseNumber ?? null,
-      baseLat,
-      baseLng,
-      new Date().toISOString()
-    ]
-  );
-  await persistDb();
 
   response.json(results);
 });

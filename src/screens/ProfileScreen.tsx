@@ -74,6 +74,10 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.label}>שם</Text>
         </View>
         <View style={styles.row}>
+          <Text style={styles.value}>{currentUser.username || "לא הוגדר"}</Text>
+          <Text style={styles.label}>שם משתמש</Text>
+        </View>
+        <View style={styles.row}>
           <Text style={styles.value}>{currentUser.phoneNumber || "לא הוגדר"}</Text>
           <Text style={styles.label}>פלאפון</Text>
         </View>

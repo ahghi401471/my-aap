@@ -18,8 +18,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 export function RegisterScreen({ navigation }: Props) {
   const { currentUser, myEquipmentIds, registerCurrentUser, selectedCity } = useAppState();
   const [fullName, setFullName] = useState(currentUser.fullName);
+  const [username, setUsername] = useState(currentUser.username ?? "");
+  const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
-  const [cityId, setCityId] = useState(selectedCity.id);
+  const [cityId, setCityId] = useState(currentUser.fullName ? selectedCity.id : "");
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
   const [houseNumber, setHouseNumber] = useState(currentUser.address?.houseNumber ?? "");
   const [selectedStreet, setSelectedStreet] = useState<StreetSuggestion | null>(
@@ -36,10 +38,23 @@ export function RegisterScreen({ navigation }: Props) {
   );
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  const selectedCityRecord = useMemo(() => cities.find((city) => city.id === cityId) ?? cities[0], [cityId]);
+  const selectedCityRecord = useMemo(
+    () => cities.find((city) => city.id === cityId) ?? undefined,
+    [cityId]
+  );
 
   async function handleSubmit() {
-    if (selectedEquipmentIds.length === 0 || !phoneNumber.trim()) {
+    if (
+      !fullName.trim() ||
+      !username.trim() ||
+      !password.trim() ||
+      password.trim().length < 6 ||
+      selectedEquipmentIds.length === 0 ||
+      !phoneNumber.trim() ||
+      !cityId ||
+      !selectedCityRecord
+    ) {
+      Alert.alert("חסרים פרטים", "מלא שם, שם משתמש, סיסמה, עיר, פלאפון וציוד.");
       return;
     }
 
@@ -75,8 +90,10 @@ export function RegisterScreen({ navigation }: Props) {
       }
 
       await registerCurrentUser({
-        fullName: fullName.trim() || currentUser.fullName,
-        phoneNumber: phoneNumber.trim() || currentUser.phoneNumber,
+        fullName: fullName.trim(),
+        username: username.trim(),
+        password: password.trim(),
+        phoneNumber: phoneNumber.trim(),
         cityId,
         address: nextAddress,
         equipmentIds: selectedEquipmentIds
@@ -84,7 +101,7 @@ export function RegisterScreen({ navigation }: Props) {
 
       navigation.navigate("Profile");
     } catch (error) {
-      Alert.alert("לא הצלחנו לסיים הרשמה", "בדוק את החיבור לשרת ונסה שוב בעוד רגע.");
+      Alert.alert("לא הצלחנו לסיים הרשמה", "בדוק את החיבור לשרת או נסה שם משתמש אחר.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -96,7 +113,7 @@ export function RegisterScreen({ navigation }: Props) {
         <Text style={styles.heroEyebrow}>ציוד סוכרת קרוב אליך</Text>
         <Text style={styles.heroTitle}>נרשמים פעם אחת ומוצאים עזרה מהר</Text>
         <Text style={styles.heroSubtitle}>
-          בחר עיר, רחוב, מספר בית, ציוד קבוע ופרטי קשר, והאפליקציה תציג בהמשך אנשים לפי הקרבה המדויקת אליך.
+          בחר עיר, רחוב, מספר בית, ציוד קבוע, פרטי קשר וגם שם משתמש וסיסמה כדי לשמור את הפרופיל שלך בשרת.
         </Text>
       </View>
 
@@ -109,10 +126,30 @@ export function RegisterScreen({ navigation }: Props) {
           placeholderTextColor={colors.muted}
         />
 
+        <TextInput
+          value={username}
+          onChangeText={setUsername}
+          placeholder="שם משתמש"
+          autoCapitalize="none"
+          style={styles.input}
+          placeholderTextColor={colors.muted}
+        />
+
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="סיסמה"
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor={colors.muted}
+        />
+
+        <Text style={styles.helperText}>לפחות 6 תווים. הסיסמה נשמרת בשרת כ־hash ולא כטקסט רגיל.</Text>
+
         <AutocompleteCityInput
           label="עיר"
           cities={cities}
-          selectedCityId={cityId}
+          selectedCityId={cityId || undefined}
           onSelect={(city) => {
             setCityId(city.id);
             setSelectedStreet(null);
@@ -124,7 +161,7 @@ export function RegisterScreen({ navigation }: Props) {
 
         <AutocompleteStreetInput
           label="רחוב מגורים"
-          cityName={selectedCityRecord.name}
+          cityName={selectedCityRecord?.name ?? ""}
           selectedStreet={selectedStreet}
           onSelect={setSelectedStreet}
         />
@@ -144,8 +181,7 @@ export function RegisterScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>באיזה ציוד אתה משתמש?</Text>
         <Text style={styles.helperText}>
-          כל סוג ציוד מופיע בשורת חיפוש משלו, וניתן לבחור יותר מפריט אחד בכל שורה. כל האינסולינים מרוכזים
-          בשורה אחת.
+          כל סוג ציוד מופיע בשורת חיפוש משלו, וניתן לבחור יותר מפריט אחד בכל שורה. כל האינסולינים מרוכזים בשורה אחת.
         </Text>
         <EquipmentPicker
           items={equipmentCatalog}
@@ -166,9 +202,25 @@ export function RegisterScreen({ navigation }: Props) {
         <Pressable
           style={[
             styles.primaryButton,
-            selectedEquipmentIds.length === 0 || !phoneNumber.trim() || isSavingProfile ? styles.buttonDisabled : null
+            !fullName.trim() ||
+            !username.trim() ||
+            !password.trim() ||
+            !phoneNumber.trim() ||
+            !cityId ||
+            selectedEquipmentIds.length === 0 ||
+            isSavingProfile
+              ? styles.buttonDisabled
+              : null
           ]}
-          disabled={selectedEquipmentIds.length === 0 || !phoneNumber.trim() || isSavingProfile}
+          disabled={
+            !fullName.trim() ||
+            !username.trim() ||
+            !password.trim() ||
+            !phoneNumber.trim() ||
+            !cityId ||
+            selectedEquipmentIds.length === 0 ||
+            isSavingProfile
+          }
           onPress={handleSubmit}
         >
           {isSavingProfile ? (

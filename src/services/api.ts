@@ -6,6 +6,8 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://my-aap-ss8
 
 type UserPayload = {
   fullName: string;
+  username: string;
+  password?: string;
   phoneNumber: string;
   cityId: string;
   address?: User["address"];
@@ -62,6 +64,8 @@ export async function registerUser(payload: UserPayload) {
     method: "POST",
     body: JSON.stringify({
       fullName: payload.fullName,
+      username: payload.username,
+      password: payload.password,
       phoneNumber: payload.phoneNumber,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
@@ -79,6 +83,8 @@ export async function updateUser(userId: string, payload: UserPayload) {
     method: "PUT",
     body: JSON.stringify({
       fullName: payload.fullName,
+      username: payload.username,
+      password: payload.password,
       phoneNumber: payload.phoneNumber,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
@@ -88,6 +94,13 @@ export async function updateUser(userId: string, payload: UserPayload) {
       equipmentIds: payload.equipmentIds,
       temporaryLocation: payload.temporaryLocation
     })
+  });
+}
+
+export async function loginUser(username: string, password: string) {
+  return apiFetch<User>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password })
   });
 }
 

@@ -39,6 +39,7 @@ export type TemporaryLocation = {
 export type User = {
   id: string;
   fullName: string;
+  username?: string;
   phoneNumber: string;
   cityId: string;
   address?: AddressLocation;

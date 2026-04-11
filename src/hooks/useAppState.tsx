@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
-import { deleteUser, registerUser, searchEquipment, updateUser } from "../services/api";
+import { deleteUser, loginUser, registerUser, searchEquipment, updateUser } from "../services/api";
 import { searchNearbyEquipment } from "../services/search";
 import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
@@ -20,6 +20,8 @@ type AppStateContextValue = {
   lastSearchSummary: string;
   updateProfile: (params: {
     fullName: string;
+    username: string;
+    password?: string;
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
@@ -27,11 +29,14 @@ type AppStateContextValue = {
   updateMyEquipment: (equipmentIds: string[]) => Promise<void>;
   registerCurrentUser: (params: {
     fullName: string;
+    username: string;
+    password: string;
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
     equipmentIds: string[];
   }) => Promise<void>;
+  loginCurrentUser: (username: string, password: string) => Promise<void>;
   setTemporaryLocation: (cityId: string, durationHours: number) => Promise<void>;
   clearTemporaryLocation: () => Promise<void>;
   deleteCurrentUser: () => Promise<void>;
@@ -51,6 +56,7 @@ const defaultUser = {
   ...mockUsers[0],
   id: "guest-user",
   fullName: "",
+  username: "",
   phoneNumber: "",
   equipmentIds: [],
   address: undefined,
@@ -141,7 +147,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentUser, hasCompletedRegistration, isHydrated, myEquipmentIds]);
 
-  async function syncUser(nextUser: User, nextEquipmentIds: string[], nextHasCompletedRegistration = hasCompletedRegistration) {
+  async function syncUser(
+    nextUser: User,
+    nextEquipmentIds: string[],
+    options?: {
+      password?: string;
+      nextHasCompletedRegistration?: boolean;
+    }
+  ) {
+    const nextHasCompletedRegistration = options?.nextHasCompletedRegistration ?? hasCompletedRegistration;
+
     setCurrentUser(nextUser);
     setMyEquipmentIds(nextEquipmentIds);
     setHasCompletedRegistration(nextHasCompletedRegistration);
@@ -153,6 +168,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     try {
       await updateUser(nextUser.id, {
         fullName: nextUser.fullName,
+        username: nextUser.username ?? "",
+        password: options?.password,
         phoneNumber: nextUser.phoneNumber,
         cityId: nextUser.cityId,
         address: nextUser.address,
@@ -166,6 +183,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   async function updateProfile(params: {
     fullName: string;
+    username: string;
+    password?: string;
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
@@ -173,12 +192,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const nextUser: User = {
       ...currentUser,
       fullName: params.fullName,
+      username: params.username,
       phoneNumber: params.phoneNumber,
       cityId: params.cityId,
       address: params.address
     };
 
-    await syncUser(nextUser, myEquipmentIds);
+    await syncUser(nextUser, myEquipmentIds, { password: params.password });
   }
 
   async function updateMyEquipment(equipmentIds: string[]) {
@@ -192,6 +212,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   async function registerCurrentUser(params: {
     fullName: string;
+    username: string;
+    password: string;
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
@@ -199,6 +221,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }) {
     const registration = await registerUser({
       fullName: params.fullName,
+      username: params.username,
+      password: params.password,
       phoneNumber: params.phoneNumber,
       cityId: params.cityId,
       address: params.address,
@@ -210,6 +234,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ...currentUser,
       id: registration.id,
       fullName: params.fullName,
+      username: params.username,
       phoneNumber: params.phoneNumber,
       cityId: params.cityId,
       address: params.address,
@@ -218,6 +243,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
     setCurrentUser(nextUser);
     setMyEquipmentIds(params.equipmentIds);
+    setHasCompletedRegistration(true);
+  }
+
+  async function loginCurrentUser(username: string, password: string) {
+    const user = await loginUser(username, password);
+    setCurrentUser(user);
+    setMyEquipmentIds(user.equipmentIds);
     setHasCompletedRegistration(true);
   }
 
@@ -330,6 +362,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         updateMyEquipment,
         registerCurrentUser,
+        loginCurrentUser,
         setTemporaryLocation,
         clearTemporaryLocation,
         deleteCurrentUser,
