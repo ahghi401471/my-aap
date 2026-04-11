@@ -26,6 +26,15 @@ function splitSqlStatements(sql: string) {
     .filter(Boolean);
 }
 
+function toPostgresSql(sql: string) {
+  let parameterIndex = 0;
+
+  return sql.replace(/\?/g, () => {
+    parameterIndex += 1;
+    return `$${parameterIndex}`;
+  });
+}
+
 async function createSqlJsClient(): Promise<DatabaseClient> {
   const SQL = await initSqlJs({
     locateFile: (file: string) => path.join(process.cwd(), "node_modules", "sql.js", "dist", file)
@@ -95,14 +104,14 @@ async function createPostgresClient(): Promise<DatabaseClient> {
   return {
     provider: "postgres",
     async execute(sql: string, params: QueryValue[] = []) {
-      await pool.query(sql, params);
+      await pool.query(toPostgresSql(sql), params);
     },
     async query<T>(sql: string, params: QueryValue[] = []) {
-      const result = await pool.query(sql, params);
+      const result = await pool.query(toPostgresSql(sql), params);
       return result.rows as T[];
     },
     async scalar<T>(sql: string, params: QueryValue[] = []) {
-      const result = await pool.query(sql, params);
+      const result = await pool.query(toPostgresSql(sql), params);
       const firstRow = result.rows[0] as Record<string, T> | undefined;
 
       if (!firstRow) {
