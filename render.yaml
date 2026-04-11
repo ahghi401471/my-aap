@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: equipment-nearby-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run server
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
