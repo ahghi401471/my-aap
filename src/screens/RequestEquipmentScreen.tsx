@@ -34,6 +34,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
   const [searchStreet, setSearchStreet] = useState<StreetSuggestion | null>(null);
   const [houseNumber, setHouseNumber] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const searchCity = useMemo(
     () => cities.find((city) => city.id === searchCityId) ?? selectedCity,
@@ -51,64 +52,73 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       return;
     }
 
-    if (searchMode === "gps") {
-      try {
+    setIsSearching(true);
+
+    try {
+      if (searchMode === "gps") {
         setIsLoadingLocation(true);
-        const permission = await Location.requestForegroundPermissionsAsync();
 
-        if (!permission.granted) {
-          Alert.alert("גישה למיקום נדחתה", "אפשר לעבור לחיפוש לפי עיר ורחוב.");
-          return;
+        try {
+          const permission = await Location.requestForegroundPermissionsAsync();
+
+          if (!permission.granted) {
+            Alert.alert("הגישה למיקום נדחתה", "אפשר לעבור לחיפוש לפי עיר ורחוב.");
+            return;
+          }
+
+          const currentPosition = await Location.getCurrentPositionAsync({});
+
+          await runSearch({
+            equipmentIds: selectedEquipmentIds,
+            searchMode: "gps",
+            lat: currentPosition.coords.latitude,
+            lng: currentPosition.coords.longitude,
+            searchSummary: "לפי המיקום הנוכחי שלך"
+          });
+        } finally {
+          setIsLoadingLocation(false);
+        }
+      } else {
+        let baseLat = searchStreet?.lat;
+        let baseLng = searchStreet?.lng;
+        let searchSummary = `לפי ${searchCity.name}`;
+
+        if (searchStreet) {
+          searchSummary = `לפי ${searchCity.name}, ${searchStreet.name}${houseNumber.trim() ? ` ${houseNumber.trim()}` : ""}`;
         }
 
-        const currentPosition = await Location.getCurrentPositionAsync({});
+        if (searchStreet && (houseNumber.trim() || typeof baseLat !== "number" || typeof baseLng !== "number")) {
+          const exactAddress = await geocodeStreetAddress({
+            cityName: searchCity.name,
+            streetName: searchStreet.name,
+            houseNumber: houseNumber.trim()
+          }).catch(() => null);
 
-        runSearch({
+          if (exactAddress) {
+            baseLat = exactAddress.lat;
+            baseLng = exactAddress.lng;
+          }
+        }
+
+        await runSearch({
           equipmentIds: selectedEquipmentIds,
-          searchMode: "gps",
-          lat: currentPosition.coords.latitude,
-          lng: currentPosition.coords.longitude,
-          searchSummary: "לפי המיקום הנוכחי שלך"
-        });
-      } catch (error) {
-        Alert.alert("לא הצלחנו לאתר מיקום", "נסה שוב או עבור לבחירת עיר ורחוב.");
-        return;
-      } finally {
-        setIsLoadingLocation(false);
-      }
-    } else {
-      let baseLat = searchStreet?.lat;
-      let baseLng = searchStreet?.lng;
-      let searchSummary = `לפי ${searchCity.name}`;
-
-      if (searchStreet) {
-        searchSummary = `לפי ${searchCity.name}, ${searchStreet.name}${houseNumber.trim() ? ` ${houseNumber.trim()}` : ""}`;
-      }
-
-      if (searchStreet && (houseNumber.trim() || typeof baseLat !== "number" || typeof baseLng !== "number")) {
-        const exactAddress = await geocodeStreetAddress({
-          cityName: searchCity.name,
-          streetName: searchStreet.name,
+          searchMode: "city",
+          cityId: searchCityId,
+          lat: baseLat,
+          lng: baseLng,
+          searchSummary,
+          streetName: searchStreet?.name,
           houseNumber: houseNumber.trim()
-        }).catch(() => null);
-
-        if (exactAddress) {
-          baseLat = exactAddress.lat;
-          baseLng = exactAddress.lng;
-        }
+        });
       }
 
-      runSearch({
-        equipmentIds: selectedEquipmentIds,
-        searchMode: "city",
-        cityId: searchCityId,
-        lat: baseLat,
-        lng: baseLng,
-        searchSummary
-      });
+      navigation.navigate("Results");
+    } catch (error) {
+      Alert.alert("לא הצלחנו להשלים את החיפוש", "נסה שוב בעוד רגע.");
+    } finally {
+      setIsSearching(false);
+      setIsLoadingLocation(false);
     }
-
-    navigation.navigate("Results");
   }
 
   return (
@@ -168,9 +178,7 @@ export function RequestEquipmentScreen({ navigation }: Props) {
               size={18}
               color={searchMode === "gps" ? "#FFFFFF" : colors.text}
             />
-            <Text style={[styles.switchText, searchMode === "gps" ? styles.switchTextActive : null]}>
-              השתמש במיקום שלי
-            </Text>
+            <Text style={[styles.switchText, searchMode === "gps" ? styles.switchTextActive : null]}>השתמש במיקום שלי</Text>
           </Pressable>
 
           <Pressable
@@ -218,8 +226,8 @@ export function RequestEquipmentScreen({ navigation }: Props) {
             />
 
             <Text style={styles.helperText}>
-              הרחובות נטענים לפי העיר שבחרת. אם תבחר גם רחוב, התוצאות ימוין לפי מיקום מדויק יותר. אם לא תבחר
-              רחוב, החיפוש יתבצע לפי מרכז העיר.
+              הרחובות נטענים לפי העיר שבחרת. אם תבחר גם רחוב, התוצאות ימוין לפי מיקום מדויק יותר. אם לא תבחר רחוב,
+              החיפוש יתבצע לפי מרכז העיר.
             </Text>
           </>
         ) : (
@@ -230,15 +238,17 @@ export function RequestEquipmentScreen({ navigation }: Props) {
       <Pressable
         style={[
           styles.primaryButton,
-          isLoadingLocation || availableEquipment.length === 0 || selectedEquipmentIds.length === 0
+          isLoadingLocation || isSearching || availableEquipment.length === 0 || selectedEquipmentIds.length === 0
             ? styles.primaryButtonDisabled
             : null
         ]}
         onPress={handleSearch}
-        disabled={isLoadingLocation || availableEquipment.length === 0 || selectedEquipmentIds.length === 0}
+        disabled={isLoadingLocation || isSearching || availableEquipment.length === 0 || selectedEquipmentIds.length === 0}
       >
         <MaterialCommunityIcons name="map-search-outline" size={20} color="#FFFFFF" />
-        <Text style={styles.primaryButtonText}>{isLoadingLocation ? "מאתר מיקום..." : "חפש ציוד קרוב"}</Text>
+        <Text style={styles.primaryButtonText}>
+          {isLoadingLocation ? "מאתר מיקום..." : isSearching ? "מחפש..." : "חפש ציוד קרוב"}
+        </Text>
       </Pressable>
     </ScrollView>
   );

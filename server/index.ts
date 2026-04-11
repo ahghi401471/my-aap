@@ -73,6 +73,9 @@ app.get("/api/users/:id", async (request, response) => {
     house_number: string | null;
     lat: number | null;
     lng: number | null;
+    temporary_city_id: string | null;
+    temporary_duration_hours: number | null;
+    temporary_expires_at: string | null;
   }>("SELECT * FROM users WHERE id = ?", [userId])();
 
   const user = users[0];
@@ -101,12 +104,30 @@ app.get("/api/users/:id", async (request, response) => {
           lat: user.lat,
           lng: user.lng
         }
-      : undefined
+      : undefined,
+    temporaryLocation:
+      user.temporary_city_id && user.temporary_expires_at
+        ? {
+            cityId: user.temporary_city_id,
+            durationHours: user.temporary_duration_hours ?? 0,
+            expiresAt: user.temporary_expires_at
+          }
+        : undefined
   });
 });
 
 app.post("/api/users/register", async (request, response) => {
-  const { fullName, phoneNumber, cityId, streetName, houseNumber, lat, lng, equipmentIds } = request.body as {
+  const {
+    fullName,
+    phoneNumber,
+    cityId,
+    streetName,
+    houseNumber,
+    lat,
+    lng,
+    equipmentIds,
+    temporaryLocation
+  } = request.body as {
     fullName: string;
     phoneNumber: string;
     cityId: string;
@@ -115,6 +136,11 @@ app.post("/api/users/register", async (request, response) => {
     lat?: number;
     lng?: number;
     equipmentIds: string[];
+    temporaryLocation?: {
+      cityId: string;
+      durationHours: number;
+      expiresAt: string;
+    };
   };
 
   if (!fullName?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
@@ -126,9 +152,24 @@ app.post("/api/users/register", async (request, response) => {
   const db = await getDb();
 
   await db.execute(
-    `INSERT INTO users (id, full_name, phone_number, city_id, street_name, house_number, lat, lng)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [userId, fullName.trim(), phoneNumber.trim(), cityId, streetName ?? null, houseNumber ?? null, lat ?? null, lng ?? null]
+    `INSERT INTO users (
+      id, full_name, phone_number, city_id, street_name, house_number, lat, lng,
+      temporary_city_id, temporary_duration_hours, temporary_expires_at
+    )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId,
+      fullName.trim(),
+      phoneNumber.trim(),
+      cityId,
+      streetName ?? null,
+      houseNumber ?? null,
+      lat ?? null,
+      lng ?? null,
+      temporaryLocation?.cityId ?? null,
+      temporaryLocation?.durationHours ?? null,
+      temporaryLocation?.expiresAt ?? null
+    ]
   );
 
   for (const equipmentId of equipmentIds) {
@@ -137,6 +178,77 @@ app.post("/api/users/register", async (request, response) => {
 
   await persistDb();
   response.status(201).json({ id: userId });
+});
+
+app.put("/api/users/:id", async (request, response) => {
+  const userId = request.params.id;
+  const {
+    fullName,
+    phoneNumber,
+    cityId,
+    streetName,
+    houseNumber,
+    lat,
+    lng,
+    equipmentIds,
+    temporaryLocation
+  } = request.body as {
+    fullName: string;
+    phoneNumber: string;
+    cityId: string;
+    streetName?: string;
+    houseNumber?: string;
+    lat?: number;
+    lng?: number;
+    equipmentIds: string[];
+    temporaryLocation?: {
+      cityId: string;
+      durationHours: number;
+      expiresAt: string;
+    };
+  };
+
+  if (!fullName?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
+    response.status(400).json({ message: "Missing required fields" });
+    return;
+  }
+
+  const db = await getDb();
+  const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();
+
+  if (existingUser.length === 0) {
+    response.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  await db.execute(
+    `UPDATE users
+     SET full_name = ?, phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
+         temporary_city_id = ?, temporary_duration_hours = ?, temporary_expires_at = ?
+     WHERE id = ?`,
+    [
+      fullName.trim(),
+      phoneNumber.trim(),
+      cityId,
+      streetName ?? null,
+      houseNumber ?? null,
+      lat ?? null,
+      lng ?? null,
+      temporaryLocation?.cityId ?? null,
+      temporaryLocation?.durationHours ?? null,
+      temporaryLocation?.expiresAt ?? null,
+      userId
+    ]
+  );
+
+  await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
+
+  for (const equipmentId of equipmentIds) {
+    await db.execute("INSERT INTO user_equipment (user_id, equipment_id) VALUES (?, ?)", [userId, equipmentId]);
+  }
+
+  await persistDb();
+  response.json({ ok: true });
 });
 
 app.post("/api/requests/search", async (request, response) => {
@@ -186,6 +298,9 @@ app.post("/api/requests/search", async (request, response) => {
     house_number: string | null;
     lat: number | null;
     lng: number | null;
+    temporary_city_id: string | null;
+    temporary_duration_hours: number | null;
+    temporary_expires_at: string | null;
   }>("SELECT * FROM users")();
 
   const userEquipment = await rowsFromQuery<{ user_id: string; equipment_id: string }>("SELECT * FROM user_equipment")();
@@ -212,14 +327,21 @@ app.post("/api/requests/search", async (request, response) => {
         return [];
       }
 
-      const city = cities.find((item) => item.id === user.city_id);
+      const hasActiveTemporaryLocation =
+        !!user.temporary_city_id &&
+        !!user.temporary_expires_at &&
+        new Date(user.temporary_expires_at).getTime() > Date.now();
+
+      const resultCityId = hasActiveTemporaryLocation ? user.temporary_city_id : user.city_id;
+      const city = cities.find((item) => item.id === resultCityId);
 
       if (!city) {
         return [];
       }
 
-      const targetLat = typeof user.lat === "number" ? user.lat : city.lat;
-      const targetLng = typeof user.lng === "number" ? user.lng : city.lng;
+      const canUseStreetAddress = !hasActiveTemporaryLocation && typeof user.lat === "number" && typeof user.lng === "number";
+      const targetLat = canUseStreetAddress ? user.lat! : city.lat;
+      const targetLng = canUseStreetAddress ? user.lng! : city.lng;
       const distanceKm = calculateDistanceKm(baseLat!, baseLng!, targetLat, targetLng);
 
       return matchedEquipmentIds.map((equipmentId) => ({
@@ -227,10 +349,15 @@ app.post("/api/requests/search", async (request, response) => {
         fullName: user.full_name,
         phoneNumber: user.phone_number,
         city: city.name,
+        cityId: city.id,
         streetName: user.street_name,
         houseNumber: user.house_number,
         equipment: equipmentMap.get(equipmentId)?.name ?? equipmentId,
-        distanceKm
+        distanceKm,
+        lat: targetLat,
+        lng: targetLng,
+        locationSource: hasActiveTemporaryLocation ? "temporary" : "home",
+        distanceBasis: canUseStreetAddress ? "street" : "city"
       }));
     })
     .sort((left, right) => left.distanceKm - right.distanceKm);

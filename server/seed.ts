@@ -3,11 +3,12 @@ import { streetsByCity } from "../src/data/streets";
 import { equipmentCatalog } from "../src/data/equipment";
 import { mockUsers } from "../src/data/mockUsers";
 import { getDb, persistDb } from "./db";
-import { schemaSql } from "./schema";
+import { migrationSql, schemaSql } from "./schema";
 
 export async function seedDatabase() {
   const db = await getDb();
   await db.execScript(schemaSql);
+  await db.execScript(migrationSql);
 
   const existingCount = Number((await db.scalar("SELECT COUNT(*) FROM users")) ?? 0);
 
@@ -31,8 +32,11 @@ export async function seedDatabase() {
 
   for (const user of mockUsers) {
     await db.execute(
-      `INSERT INTO users (id, full_name, phone_number, city_id, street_name, house_number, lat, lng)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (
+        id, full_name, phone_number, city_id, street_name, house_number, lat, lng,
+        temporary_city_id, temporary_duration_hours, temporary_expires_at
+      )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         user.fullName,
@@ -41,7 +45,10 @@ export async function seedDatabase() {
         user.address?.streetName ?? null,
         user.address?.houseNumber ?? null,
         user.address?.lat ?? null,
-        user.address?.lng ?? null
+        user.address?.lng ?? null,
+        user.temporaryLocation?.cityId ?? null,
+        user.temporaryLocation?.durationHours ?? null,
+        user.temporaryLocation?.expiresAt ?? null
       ]
     );
 

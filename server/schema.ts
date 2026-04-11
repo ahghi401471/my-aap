@@ -20,7 +20,10 @@ CREATE TABLE IF NOT EXISTS users (
   street_name TEXT,
   house_number TEXT,
   lat REAL,
-  lng REAL
+  lng REAL,
+  temporary_city_id TEXT,
+  temporary_duration_hours INTEGER,
+  temporary_expires_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS equipment (
@@ -47,4 +50,10 @@ CREATE TABLE IF NOT EXISTS requests (
   lng REAL,
   created_at TEXT NOT NULL
 );
+`;
+
+export const migrationSql = `
+ALTER TABLE users ADD COLUMN IF NOT EXISTS temporary_city_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS temporary_duration_hours INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS temporary_expires_at TEXT;
 `;

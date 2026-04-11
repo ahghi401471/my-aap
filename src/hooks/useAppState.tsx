@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
+import { registerUser, searchEquipment, updateUser } from "../services/api";
 import { searchNearbyEquipment } from "../services/search";
 import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
@@ -22,11 +23,17 @@ type AppStateContextValue = {
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
-  }) => void;
-  updateMyEquipment: (equipmentIds: string[]) => void;
-  completeRegistration: () => void;
-  setTemporaryLocation: (cityId: string, durationHours: number) => void;
-  clearTemporaryLocation: () => void;
+  }) => Promise<void>;
+  updateMyEquipment: (equipmentIds: string[]) => Promise<void>;
+  registerCurrentUser: (params: {
+    fullName: string;
+    phoneNumber: string;
+    cityId: string;
+    address?: AddressLocation;
+    equipmentIds: string[];
+  }) => Promise<void>;
+  setTemporaryLocation: (cityId: string, durationHours: number) => Promise<void>;
+  clearTemporaryLocation: () => Promise<void>;
   runSearch: (params: {
     equipmentIds: string[];
     searchMode: SearchMode;
@@ -34,11 +41,14 @@ type AppStateContextValue = {
     lat?: number;
     lng?: number;
     searchSummary?: string;
-  }) => void;
+    streetName?: string;
+    houseNumber?: string;
+  }) => Promise<void>;
 };
 
 const defaultUser = mockUsers[0];
 const STORAGE_KEY = "equipment-nearby-app-state";
+const DEFAULT_SEARCH_SUMMARY = "לפי המיקום שבחרת";
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
 
@@ -47,7 +57,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>(defaultUser.equipmentIds);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [lastSearchMode, setLastSearchMode] = useState<SearchMode>("city");
-  const [lastSearchSummary, setLastSearchSummary] = useState("לפי המיקום שבחרת");
+  const [lastSearchSummary, setLastSearchSummary] = useState(DEFAULT_SEARCH_SUMMARY);
   const [hasCompletedRegistration, setHasCompletedRegistration] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -121,60 +131,118 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentUser, hasCompletedRegistration, isHydrated, myEquipmentIds]);
 
-  function updateProfile(params: {
+  async function syncUser(nextUser: User, nextEquipmentIds: string[], nextHasCompletedRegistration = hasCompletedRegistration) {
+    setCurrentUser(nextUser);
+    setMyEquipmentIds(nextEquipmentIds);
+    setHasCompletedRegistration(nextHasCompletedRegistration);
+
+    if (!nextHasCompletedRegistration) {
+      return;
+    }
+
+    try {
+      await updateUser(nextUser.id, {
+        fullName: nextUser.fullName,
+        phoneNumber: nextUser.phoneNumber,
+        cityId: nextUser.cityId,
+        address: nextUser.address,
+        equipmentIds: nextEquipmentIds,
+        temporaryLocation: nextUser.temporaryLocation
+      });
+    } catch (error) {
+      // Keep local state even if remote sync is temporarily unavailable.
+    }
+  }
+
+  async function updateProfile(params: {
     fullName: string;
     phoneNumber: string;
     cityId: string;
     address?: AddressLocation;
   }) {
-    setCurrentUser((previous) => ({
-      ...previous,
+    const nextUser: User = {
+      ...currentUser,
       fullName: params.fullName,
       phoneNumber: params.phoneNumber,
       cityId: params.cityId,
       address: params.address
-    }));
+    };
+
+    await syncUser(nextUser, myEquipmentIds);
   }
 
-  function updateMyEquipment(equipmentIds: string[]) {
-    setMyEquipmentIds(equipmentIds);
-    setCurrentUser((previous) => ({
-      ...previous,
+  async function updateMyEquipment(equipmentIds: string[]) {
+    const nextUser: User = {
+      ...currentUser,
       equipmentIds
-    }));
+    };
+
+    await syncUser(nextUser, equipmentIds);
   }
 
-  function completeRegistration() {
+  async function registerCurrentUser(params: {
+    fullName: string;
+    phoneNumber: string;
+    cityId: string;
+    address?: AddressLocation;
+    equipmentIds: string[];
+  }) {
+    const registration = await registerUser({
+      fullName: params.fullName,
+      phoneNumber: params.phoneNumber,
+      cityId: params.cityId,
+      address: params.address,
+      equipmentIds: params.equipmentIds,
+      temporaryLocation: currentUser.temporaryLocation
+    });
+
+    const nextUser: User = {
+      ...currentUser,
+      id: registration.id,
+      fullName: params.fullName,
+      phoneNumber: params.phoneNumber,
+      cityId: params.cityId,
+      address: params.address,
+      equipmentIds: params.equipmentIds
+    };
+
+    setCurrentUser(nextUser);
+    setMyEquipmentIds(params.equipmentIds);
     setHasCompletedRegistration(true);
   }
 
-  function setTemporaryLocation(cityId: string, durationHours: number) {
+  async function setTemporaryLocation(cityId: string, durationHours: number) {
     const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
-
-    setCurrentUser((previous) => ({
-      ...previous,
+    const nextUser: User = {
+      ...currentUser,
       temporaryLocation: {
         cityId,
         durationHours,
         expiresAt
       }
-    }));
+    };
+
+    await syncUser(nextUser, myEquipmentIds);
   }
 
-  function clearTemporaryLocation() {
-    setCurrentUser((previous) => ({
-      ...previous,
+  async function clearTemporaryLocation() {
+    const nextUser: User = {
+      ...currentUser,
       temporaryLocation: undefined
-    }));
+    };
+
+    await syncUser(nextUser, myEquipmentIds);
   }
 
-  function runSearch(params: {
+  async function runSearch(params: {
     equipmentIds: string[];
     searchMode: SearchMode;
     cityId?: string;
     lat?: number;
     lng?: number;
     searchSummary?: string;
+    streetName?: string;
+    houseNumber?: string;
   }) {
     let baseLat = params.lat;
     let baseLng = params.lng;
@@ -188,19 +256,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (typeof baseLat !== "number" || typeof baseLng !== "number") {
       setSearchResults([]);
       setLastSearchMode(params.searchMode);
-      setLastSearchSummary(params.searchSummary ?? "לפי המיקום שבחרת");
+      setLastSearchSummary(params.searchSummary ?? DEFAULT_SEARCH_SUMMARY);
       return;
     }
 
-    const results = searchNearbyEquipment({
-      equipmentIds: params.equipmentIds,
-      baseLat,
-      baseLng
-    }).filter((result) => result.user.id !== currentUser.id);
+    try {
+      const results = await searchEquipment({
+        requesterUserId: hasCompletedRegistration ? currentUser.id : undefined,
+        equipmentIds: params.equipmentIds,
+        searchMode: params.searchMode,
+        cityId: params.cityId,
+        streetName: params.streetName,
+        houseNumber: params.houseNumber,
+        lat: baseLat,
+        lng: baseLng
+      });
 
-    setSearchResults(results);
+      setSearchResults(results);
+    } catch (error) {
+      const fallbackResults = searchNearbyEquipment({
+        equipmentIds: params.equipmentIds,
+        baseLat,
+        baseLng
+      }).filter((result) => result.user.id !== currentUser.id);
+
+      setSearchResults(fallbackResults);
+    }
+
     setLastSearchMode(params.searchMode);
-    setLastSearchSummary(params.searchSummary ?? "לפי המיקום שבחרת");
+    setLastSearchSummary(params.searchSummary ?? DEFAULT_SEARCH_SUMMARY);
   }
 
   return (
@@ -217,7 +301,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         lastSearchSummary,
         updateProfile,
         updateMyEquipment,
-        completeRegistration,
+        registerCurrentUser,
         setTemporaryLocation,
         clearTemporaryLocation,
         runSearch

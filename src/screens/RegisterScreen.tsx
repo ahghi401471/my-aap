@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
@@ -16,8 +16,7 @@ import { StreetSuggestion } from "../types/models";
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
 export function RegisterScreen({ navigation }: Props) {
-  const { completeRegistration, currentUser, myEquipmentIds, selectedCity, updateMyEquipment, updateProfile } =
-    useAppState();
+  const { currentUser, myEquipmentIds, registerCurrentUser, selectedCity } = useAppState();
   const [fullName, setFullName] = useState(currentUser.fullName);
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
   const [cityId, setCityId] = useState(selectedCity.id);
@@ -75,15 +74,17 @@ export function RegisterScreen({ navigation }: Props) {
         };
       }
 
-      updateProfile({
+      await registerCurrentUser({
         fullName: fullName.trim() || currentUser.fullName,
         phoneNumber: phoneNumber.trim() || currentUser.phoneNumber,
         cityId,
-        address: nextAddress
+        address: nextAddress,
+        equipmentIds: selectedEquipmentIds
       });
-      updateMyEquipment(selectedEquipmentIds);
-      completeRegistration();
+
       navigation.navigate("Profile");
+    } catch (error) {
+      Alert.alert("לא הצלחנו לסיים הרשמה", "בדוק את החיבור לשרת ונסה שוב בעוד רגע.");
     } finally {
       setIsSavingProfile(false);
     }
