@@ -251,6 +251,24 @@ app.put("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
+app.delete("/api/users/:id", async (request, response) => {
+  const userId = request.params.id;
+  const db = await getDb();
+  const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();
+
+  if (existingUser.length === 0) {
+    response.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
+  await db.execute("DELETE FROM requests WHERE requester_user_id = ?", [userId]);
+  await db.execute("DELETE FROM users WHERE id = ?", [userId]);
+
+  await persistDb();
+  response.json({ ok: true });
+});
+
 app.post("/api/requests/search", async (request, response) => {
   const { requesterUserId, equipmentIds, searchMode, cityId, streetName, houseNumber, lat, lng } = request.body as {
     requesterUserId?: string;

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
-import { registerUser, searchEquipment, updateUser } from "../services/api";
+import { deleteUser, registerUser, searchEquipment, updateUser } from "../services/api";
 import { searchNearbyEquipment } from "../services/search";
 import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
@@ -34,6 +34,7 @@ type AppStateContextValue = {
   }) => Promise<void>;
   setTemporaryLocation: (cityId: string, durationHours: number) => Promise<void>;
   clearTemporaryLocation: () => Promise<void>;
+  deleteCurrentUser: () => Promise<void>;
   runSearch: (params: {
     equipmentIds: string[];
     searchMode: SearchMode;
@@ -46,7 +47,16 @@ type AppStateContextValue = {
   }) => Promise<void>;
 };
 
-const defaultUser = mockUsers[0];
+const defaultUser = {
+  ...mockUsers[0],
+  id: "guest-user",
+  fullName: "",
+  phoneNumber: "",
+  equipmentIds: [],
+  address: undefined,
+  temporaryLocation: undefined
+} satisfies User;
+
 const STORAGE_KEY = "equipment-nearby-app-state";
 const DEFAULT_SEARCH_SUMMARY = "לפי המיקום שבחרת";
 
@@ -54,7 +64,7 @@ const AppStateContext = createContext<AppStateContextValue | undefined>(undefine
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(defaultUser);
-  const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>(defaultUser.equipmentIds);
+  const [myEquipmentIds, setMyEquipmentIds] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [lastSearchMode, setLastSearchMode] = useState<SearchMode>("city");
   const [lastSearchSummary, setLastSearchSummary] = useState(DEFAULT_SEARCH_SUMMARY);
@@ -234,6 +244,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await syncUser(nextUser, myEquipmentIds);
   }
 
+  async function deleteCurrentUser() {
+    if (hasCompletedRegistration && currentUser.id && currentUser.id !== "guest-user") {
+      try {
+        await deleteUser(currentUser.id);
+      } catch (error) {
+        // Reset local state even if remote deletion temporarily fails.
+      }
+    }
+
+    setCurrentUser(defaultUser);
+    setMyEquipmentIds([]);
+    setSearchResults([]);
+    setLastSearchMode("city");
+    setLastSearchSummary(DEFAULT_SEARCH_SUMMARY);
+    setHasCompletedRegistration(false);
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  }
+
   async function runSearch(params: {
     equipmentIds: string[];
     searchMode: SearchMode;
@@ -304,6 +332,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         registerCurrentUser,
         setTemporaryLocation,
         clearTemporaryLocation,
+        deleteCurrentUser,
         runSearch
       }}
     >

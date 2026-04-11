@@ -91,6 +91,12 @@ export async function updateUser(userId: string, payload: UserPayload) {
   });
 }
 
+export async function deleteUser(userId: string) {
+  await apiFetch<{ ok: true }>(`/api/users/${userId}`, {
+    method: "DELETE"
+  });
+}
+
 export async function searchEquipment(payload: SearchPayload) {
   const rows = await apiFetch<SearchApiRow[]>("/api/requests/search", {
     method: "POST",

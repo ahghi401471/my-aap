@@ -1,7 +1,7 @@
 import React from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { SectionCard } from "../components/SectionCard";
@@ -12,7 +12,7 @@ import { spacing } from "../constants/spacing";
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
 export function ProfileScreen({ navigation }: Props) {
-  const { activeTemporaryCity, clearTemporaryLocation, currentUser, selectedCity } = useAppState();
+  const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
   const myEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = myEquipment.reduce<Record<string, typeof myEquipment>>((groups, item) => {
     if (!groups[item.category]) {
@@ -30,6 +30,26 @@ export function ProfileScreen({ navigation }: Props) {
       : undefined
     : undefined;
 
+  function handleDeleteAccount() {
+    Alert.alert("למחוק את החשבון?", "המשתמש והציוד שלו יימחקו מהמערכת ותועבר למסך ההרשמה.", [
+      {
+        text: "ביטול",
+        style: "cancel"
+      },
+      {
+        text: "מחק חשבון",
+        style: "destructive",
+        onPress: async () => {
+          await deleteCurrentUser();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Register" }]
+          });
+        }
+      }
+    ]);
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.heroCard}>
@@ -44,17 +64,17 @@ export function ProfileScreen({ navigation }: Props) {
           </Pressable>
         </View>
         <Text style={styles.heroEyebrow}>ברוך הבא</Text>
-        <Text style={styles.heroTitle}>{currentUser.fullName}</Text>
+        <Text style={styles.heroTitle}>{currentUser.fullName || "משתמש חדש"}</Text>
         <Text style={styles.heroSubtitle}>בקשת ציוד, עריכת פרופיל ועדכון מיקום זמני במקום אחד.</Text>
       </View>
 
       <SectionCard title="פרטי משתמש">
         <View style={styles.row}>
-          <Text style={styles.value}>{currentUser.fullName}</Text>
+          <Text style={styles.value}>{currentUser.fullName || "לא הוגדר"}</Text>
           <Text style={styles.label}>שם</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.value}>{currentUser.phoneNumber}</Text>
+          <Text style={styles.value}>{currentUser.phoneNumber || "לא הוגדר"}</Text>
           <Text style={styles.label}>פלאפון</Text>
         </View>
         <View style={styles.row}>
@@ -147,6 +167,11 @@ export function ProfileScreen({ navigation }: Props) {
         <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("MyEquipment")}>
           <MaterialCommunityIcons name="playlist-edit" size={18} color={colors.secondary} />
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
+        </Pressable>
+
+        <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <MaterialCommunityIcons name="delete-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.deleteButtonText}>מחק חשבון</Text>
         </Pressable>
       </SectionCard>
     </ScrollView>
@@ -340,6 +365,20 @@ const styles = StyleSheet.create({
   },
   ghostButtonText: {
     color: colors.text,
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  deleteButton: {
+    backgroundColor: "#C74242",
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
+  },
+  deleteButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700"
   }
