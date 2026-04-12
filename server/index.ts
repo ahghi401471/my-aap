@@ -445,6 +445,7 @@ app.post("/api/requests/search", async (request, response) => {
   const users = await rowsFromQuery<{
     id: string;
     full_name: string;
+    username: string | null;
     phone_number: string;
     share_phone_number: number;
     city_id: string;
@@ -460,6 +461,14 @@ app.post("/api/requests/search", async (request, response) => {
   const userEquipment = await rowsFromQuery<{ user_id: string; equipment_id: string }>("SELECT * FROM user_equipment")();
   const equipmentMap = new Map(equipmentRows.map((item) => [item.id, item]));
   const userEquipmentMap = new Map<string, string[]>();
+  const requester = requesterUserId
+    ? (
+        await rowsFromQuery<{ id: string; username: string | null; phone_number: string | null }>(
+          "SELECT id, username, phone_number FROM users WHERE id = ?",
+          [requesterUserId]
+        )()
+      )[0]
+    : undefined;
 
   for (const item of userEquipment) {
     if (!userEquipmentMap.has(item.user_id)) {
@@ -471,7 +480,11 @@ app.post("/api/requests/search", async (request, response) => {
 
   const results = users
     .flatMap((user) => {
-      if (requesterUserId && user.id === requesterUserId) {
+      if (
+        (requesterUserId && user.id === requesterUserId) ||
+        (requester?.username && user.username && requester.username.toLowerCase() === user.username.toLowerCase()) ||
+        (requester?.phone_number && user.phone_number && requester.phone_number === user.phone_number)
+      ) {
         return [];
       }
 

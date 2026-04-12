@@ -133,7 +133,7 @@ export async function searchEquipment(payload: SearchPayload) {
         id: row.userId,
         fullName: row.fullName,
         phoneNumber: row.phoneNumber ?? "",
-        sharePhoneNumber: Boolean(row.sharePhoneNumber && row.phoneNumber),
+        sharePhoneNumber: Boolean(row.phoneNumber),
         cityId: city.id,
         equipmentIds: equipmentCatalog.filter((item) => item.name === row.equipment).map((item) => item.id),
         address:
