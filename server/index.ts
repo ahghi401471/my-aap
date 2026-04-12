@@ -397,13 +397,6 @@ app.delete("/api/users/:id", async (request, response) => {
     return;
   }
 
-  await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
-  await db.execute("DELETE FROM users WHERE id = ?", [userId]);
-
-  await persistDb();
-  response.json({ ok: true });
-});
-
   response.json({ ok: true });
 });
 
