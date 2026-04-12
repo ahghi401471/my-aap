@@ -404,6 +404,16 @@ app.delete("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
+app.post("/api/admin/reset-users", async (_request, response) => {
+  const db = await getDb();
+
+  await db.execute("DELETE FROM user_equipment");
+  await db.execute("DELETE FROM users");
+  await persistDb();
+
+  response.json({ ok: true });
+});
+
 app.post("/api/requests/search", async (request, response) => {
   const { requesterUserId, equipmentIds, searchMode, cityId, streetName, houseNumber, lat, lng } = request.body as {
     requesterUserId?: string;
