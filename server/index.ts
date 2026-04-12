@@ -404,13 +404,6 @@ app.delete("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
-app.get("/api/admin/reset-users", async (_request, response) => {
-  const db = await getDb();
-
-  await db.execute("DELETE FROM user_equipment");
-  await db.execute("DELETE FROM users");
-  await persistDb();
-
   response.json({ ok: true });
 });
 
