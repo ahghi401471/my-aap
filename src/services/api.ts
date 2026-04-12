@@ -9,6 +9,7 @@ type UserPayload = {
   username: string;
   password?: string;
   phoneNumber: string;
+  sharePhoneNumber: boolean;
   cityId: string;
   address?: User["address"];
   equipmentIds: string[];
@@ -29,7 +30,8 @@ type SearchPayload = {
 type SearchApiRow = {
   userId: string;
   fullName: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
+  sharePhoneNumber?: boolean;
   city: string;
   cityId: string;
   streetName?: string | null;
@@ -67,6 +69,7 @@ export async function registerUser(payload: UserPayload) {
       username: payload.username,
       password: payload.password,
       phoneNumber: payload.phoneNumber,
+      sharePhoneNumber: payload.sharePhoneNumber,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -86,6 +89,7 @@ export async function updateUser(userId: string, payload: UserPayload) {
       username: payload.username,
       password: payload.password,
       phoneNumber: payload.phoneNumber,
+      sharePhoneNumber: payload.sharePhoneNumber,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -128,7 +132,8 @@ export async function searchEquipment(payload: SearchPayload) {
       const user: User = {
         id: row.userId,
         fullName: row.fullName,
-        phoneNumber: row.phoneNumber,
+        phoneNumber: row.phoneNumber ?? "",
+        sharePhoneNumber: Boolean(row.sharePhoneNumber && row.phoneNumber),
         cityId: city.id,
         equipmentIds: equipmentCatalog.filter((item) => item.name === row.equipment).map((item) => item.id),
         address:

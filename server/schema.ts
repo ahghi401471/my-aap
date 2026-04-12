@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT UNIQUE,
   password_hash TEXT,
   phone_number TEXT NOT NULL,
+  share_phone_number INTEGER NOT NULL DEFAULT 0,
   city_id TEXT NOT NULL REFERENCES cities(id),
   street_name TEXT,
   house_number TEXT,
@@ -48,5 +49,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS temporary_duration_hours INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS temporary_expires_at TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS share_phone_number INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);
 `;

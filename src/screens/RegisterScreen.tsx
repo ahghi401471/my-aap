@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -16,11 +17,13 @@ import { StreetSuggestion } from "../types/models";
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
 export function RegisterScreen({ navigation }: Props) {
-  const { currentUser, myEquipmentIds, registerCurrentUser, selectedCity } = useAppState();
+  const { currentUser, hasCompletedRegistration, myEquipmentIds, registerCurrentUser, selectedCity, updateProfile, updateMyEquipment } =
+    useAppState();
   const [fullName, setFullName] = useState(currentUser.fullName);
   const [username, setUsername] = useState(currentUser.username ?? "");
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
+  const [sharePhoneNumber, setSharePhoneNumber] = useState(currentUser.sharePhoneNumber ?? false);
   const [cityId, setCityId] = useState(currentUser.fullName ? selectedCity.id : "");
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
   const [houseNumber, setHouseNumber] = useState(currentUser.address?.houseNumber ?? "");
@@ -43,18 +46,21 @@ export function RegisterScreen({ navigation }: Props) {
     [cityId]
   );
 
+  const isEditingExistingProfile = hasCompletedRegistration && currentUser.id !== "guest-user";
+
   async function handleSubmit() {
     if (
       !fullName.trim() ||
       !username.trim() ||
-      !password.trim() ||
-      password.trim().length < 6 ||
+      (!isEditingExistingProfile && !password.trim()) ||
+      (password.trim() && password.trim().length < 6) ||
       selectedEquipmentIds.length === 0 ||
       !phoneNumber.trim() ||
+      !sharePhoneNumber ||
       !cityId ||
       !selectedCityRecord
     ) {
-      Alert.alert("חסרים פרטים", "מלא שם, שם משתמש, סיסמה, עיר, פלאפון וציוד.");
+      Alert.alert("חסרים פרטים", "מלא את כל השדות וסמן שמספר הפלאפון ישותף עם אנשים אחרים.");
       return;
     }
 
@@ -89,19 +95,33 @@ export function RegisterScreen({ navigation }: Props) {
         };
       }
 
-      await registerCurrentUser({
-        fullName: fullName.trim(),
-        username: username.trim(),
-        password: password.trim(),
-        phoneNumber: phoneNumber.trim(),
-        cityId,
-        address: nextAddress,
-        equipmentIds: selectedEquipmentIds
-      });
+      if (isEditingExistingProfile) {
+        await updateProfile({
+          fullName: fullName.trim(),
+          username: username.trim(),
+          password: password.trim() || undefined,
+          phoneNumber: phoneNumber.trim(),
+          sharePhoneNumber,
+          cityId,
+          address: nextAddress
+        });
+        await updateMyEquipment(selectedEquipmentIds);
+      } else {
+        await registerCurrentUser({
+          fullName: fullName.trim(),
+          username: username.trim(),
+          password: password.trim(),
+          phoneNumber: phoneNumber.trim(),
+          sharePhoneNumber,
+          cityId,
+          address: nextAddress,
+          equipmentIds: selectedEquipmentIds
+        });
+      }
 
       navigation.navigate("Profile");
     } catch (error) {
-      Alert.alert("לא הצלחנו לסיים הרשמה", "בדוק את החיבור לשרת או נסה שם משתמש אחר.");
+      Alert.alert("לא הצלחנו לשמור", "בדוק את החיבור לשרת או נסה שם משתמש אחר.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -138,13 +158,16 @@ export function RegisterScreen({ navigation }: Props) {
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="סיסמה"
+          placeholder={isEditingExistingProfile ? "סיסמה חדשה (לא חובה)" : "סיסמה"}
           secureTextEntry
           style={styles.input}
           placeholderTextColor={colors.muted}
         />
 
-        <Text style={styles.helperText}>לפחות 6 תווים. הסיסמה נשמרת בשרת כ־hash ולא כטקסט רגיל.</Text>
+        <Text style={styles.helperText}>
+          לפחות 6 תווים. הסיסמה נשמרת בשרת כ־hash ולא כטקסט רגיל.
+          {isEditingExistingProfile ? " אם לא תרשום סיסמה חדשה, הקיימת תישאר." : ""}
+        </Text>
 
         <AutocompleteCityInput
           label="עיר"
@@ -199,13 +222,23 @@ export function RegisterScreen({ navigation }: Props) {
           placeholderTextColor={colors.muted}
         />
 
+        <Pressable style={styles.checkboxRow} onPress={() => setSharePhoneNumber((current) => !current)}>
+          <MaterialCommunityIcons
+            name={sharePhoneNumber ? "checkbox-marked" : "checkbox-blank-outline"}
+            size={24}
+            color={sharePhoneNumber ? colors.primary : colors.muted}
+          />
+          <Text style={styles.checkboxText}>אני מאשר שמספר הפלאפון שלי ישותף עם אנשים אחרים לצורך יצירת קשר</Text>
+        </Pressable>
+
         <Pressable
           style={[
             styles.primaryButton,
             !fullName.trim() ||
             !username.trim() ||
-            !password.trim() ||
+            (!isEditingExistingProfile && !password.trim()) ||
             !phoneNumber.trim() ||
+            !sharePhoneNumber ||
             !cityId ||
             selectedEquipmentIds.length === 0 ||
             isSavingProfile
@@ -215,8 +248,9 @@ export function RegisterScreen({ navigation }: Props) {
           disabled={
             !fullName.trim() ||
             !username.trim() ||
-            !password.trim() ||
+            (!isEditingExistingProfile && !password.trim()) ||
             !phoneNumber.trim() ||
+            !sharePhoneNumber ||
             !cityId ||
             selectedEquipmentIds.length === 0 ||
             isSavingProfile
@@ -226,7 +260,7 @@ export function RegisterScreen({ navigation }: Props) {
           {isSavingProfile ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.primaryButtonText}>סיום הרשמה</Text>
+            <Text style={styles.primaryButtonText}>{isEditingExistingProfile ? "שמור שינויים" : "סיום הרשמה"}</Text>
           )}
         </Pressable>
       </SectionCard>
@@ -293,6 +327,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 56
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  checkboxText: {
+    flex: 1,
+    color: colors.text,
+    lineHeight: 22,
+    fontWeight: "600"
   },
   buttonDisabled: {
     opacity: 0.5

@@ -24,7 +24,12 @@ export function ResultsScreen({ navigation }: Props) {
       return accumulator;
     }, {});
 
-    return Object.values(grouped).sort((left, right) => left[0].distanceKm - right[0].distanceKm);
+    return Object.values(grouped)
+      .map((resultsForUser) => {
+        const uniqueEquipment = Array.from(new Map(resultsForUser.map((result) => [result.equipment.id, result])).values());
+        return uniqueEquipment;
+      })
+      .sort((left, right) => left[0].distanceKm - right[0].distanceKm);
   }, [searchResults]);
 
   return (
@@ -42,7 +47,7 @@ export function ResultsScreen({ navigation }: Props) {
 
       {groupedResults.length === 0 ? (
         <SectionCard title="לא נמצאו תוצאות">
-          <Text style={styles.emptyText}>לא נמצאו אנשים עם הציוד הזה באזור שבחרת. נסה עיר, רחוב או ציוד אחר.</Text>
+          <Text style={styles.emptyText}>לא נמצאו אנשים עם הציוד הזה באזור שבחרת.</Text>
         </SectionCard>
       ) : (
         groupedResults.map((resultsForUser) => {
@@ -78,6 +83,10 @@ export function ResultsScreen({ navigation }: Props) {
               <View style={styles.resultRow}>
                 <Text style={styles.distance}>{firstResult.distanceKm.toFixed(1)} ק"מ</Text>
                 <Text style={styles.label}>מרחק משוער</Text>
+              </View>
+              <View style={styles.resultRow}>
+                <Text style={styles.value}>{firstResult.user.sharePhoneNumber ? firstResult.user.phoneNumber : "לא שותף"}</Text>
+                <Text style={styles.label}>פלאפון</Text>
               </View>
             </SectionCard>
           );

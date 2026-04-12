@@ -70,6 +70,7 @@ app.get("/api/users/:id", async (request, response) => {
     full_name: string;
     username: string | null;
     phone_number: string;
+    share_phone_number: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -97,6 +98,7 @@ app.get("/api/users/:id", async (request, response) => {
     fullName: user.full_name,
     username: user.username ?? undefined,
     phoneNumber: user.phone_number,
+    sharePhoneNumber: Boolean(user.share_phone_number),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -125,6 +127,7 @@ app.post("/api/users/register", async (request, response) => {
     username,
     password,
     phoneNumber,
+    sharePhoneNumber,
     cityId,
     streetName,
     houseNumber,
@@ -137,6 +140,7 @@ app.post("/api/users/register", async (request, response) => {
     username: string;
     password: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -156,6 +160,8 @@ app.post("/api/users/register", async (request, response) => {
     !password?.trim() ||
     password.trim().length < 6 ||
     !phoneNumber?.trim() ||
+    typeof sharePhoneNumber !== "boolean" ||
+    !sharePhoneNumber ||
     !cityId ||
     !Array.isArray(equipmentIds) ||
     equipmentIds.length === 0
@@ -178,16 +184,17 @@ app.post("/api/users/register", async (request, response) => {
 
   await db.execute(
     `INSERT INTO users (
-      id, full_name, username, password_hash, phone_number, city_id, street_name, house_number, lat, lng,
+      id, full_name, username, password_hash, phone_number, share_phone_number, city_id, street_name, house_number, lat, lng,
       temporary_city_id, temporary_duration_hours, temporary_expires_at
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       fullName.trim(),
       username.trim(),
       hashPassword(password.trim()),
       phoneNumber.trim(),
+      sharePhoneNumber ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -214,6 +221,7 @@ app.put("/api/users/:id", async (request, response) => {
     username,
     password,
     phoneNumber,
+    sharePhoneNumber,
     cityId,
     streetName,
     houseNumber,
@@ -226,6 +234,7 @@ app.put("/api/users/:id", async (request, response) => {
     username: string;
     password?: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -239,7 +248,15 @@ app.put("/api/users/:id", async (request, response) => {
     };
   };
 
-  if (!fullName?.trim() || !username?.trim() || !phoneNumber?.trim() || !cityId || !Array.isArray(equipmentIds) || equipmentIds.length === 0) {
+  if (
+    !fullName?.trim() ||
+    !username?.trim() ||
+    !phoneNumber?.trim() ||
+    typeof sharePhoneNumber !== "boolean" ||
+    !cityId ||
+    !Array.isArray(equipmentIds) ||
+    equipmentIds.length === 0
+  ) {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
@@ -271,7 +288,7 @@ app.put("/api/users/:id", async (request, response) => {
 
   await db.execute(
     `UPDATE users
-     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
+     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, share_phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
          temporary_city_id = ?, temporary_duration_hours = ?, temporary_expires_at = ?
      WHERE id = ?`,
     [
@@ -279,6 +296,7 @@ app.put("/api/users/:id", async (request, response) => {
       username.trim(),
       nextPasswordHash ?? null,
       phoneNumber.trim(),
+      sharePhoneNumber ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -318,6 +336,7 @@ app.post("/api/auth/login", async (request, response) => {
     username: string | null;
     password_hash: string | null;
     phone_number: string;
+    share_phone_number: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -345,6 +364,7 @@ app.post("/api/auth/login", async (request, response) => {
     fullName: user.full_name,
     username: user.username ?? undefined,
     phoneNumber: user.phone_number,
+    sharePhoneNumber: Boolean(user.share_phone_number),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -426,6 +446,7 @@ app.post("/api/requests/search", async (request, response) => {
     id: string;
     full_name: string;
     phone_number: string;
+    share_phone_number: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -480,7 +501,7 @@ app.post("/api/requests/search", async (request, response) => {
       return matchedEquipmentIds.map((equipmentId) => ({
         userId: user.id,
         fullName: user.full_name,
-        phoneNumber: user.phone_number,
+        phoneNumber: user.share_phone_number ? user.phone_number : null,
         city: city.name,
         cityId: city.id,
         streetName: user.street_name,

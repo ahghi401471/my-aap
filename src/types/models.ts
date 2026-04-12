@@ -41,6 +41,7 @@ export type User = {
   fullName: string;
   username?: string;
   phoneNumber: string;
+  sharePhoneNumber?: boolean;
   cityId: string;
   address?: AddressLocation;
   equipmentIds: string[];

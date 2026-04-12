@@ -5,7 +5,6 @@ import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
 import { deleteUser, loginUser, registerUser, searchEquipment, updateUser } from "../services/api";
-import { searchNearbyEquipment } from "../services/search";
 import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
 type AppStateContextValue = {
@@ -23,6 +22,7 @@ type AppStateContextValue = {
     username: string;
     password?: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     address?: AddressLocation;
   }) => Promise<void>;
@@ -32,6 +32,7 @@ type AppStateContextValue = {
     username: string;
     password: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     address?: AddressLocation;
     equipmentIds: string[];
@@ -58,6 +59,7 @@ const defaultUser = {
   fullName: "",
   username: "",
   phoneNumber: "",
+  sharePhoneNumber: false,
   equipmentIds: [],
   address: undefined,
   temporaryLocation: undefined
@@ -171,6 +173,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         username: nextUser.username ?? "",
         password: options?.password,
         phoneNumber: nextUser.phoneNumber,
+        sharePhoneNumber: nextUser.sharePhoneNumber ?? false,
         cityId: nextUser.cityId,
         address: nextUser.address,
         equipmentIds: nextEquipmentIds,
@@ -186,6 +189,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     username: string;
     password?: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     address?: AddressLocation;
   }) {
@@ -194,6 +198,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       fullName: params.fullName,
       username: params.username,
       phoneNumber: params.phoneNumber,
+      sharePhoneNumber: params.sharePhoneNumber,
       cityId: params.cityId,
       address: params.address
     };
@@ -215,6 +220,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     username: string;
     password: string;
     phoneNumber: string;
+    sharePhoneNumber: boolean;
     cityId: string;
     address?: AddressLocation;
     equipmentIds: string[];
@@ -224,6 +230,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       username: params.username,
       password: params.password,
       phoneNumber: params.phoneNumber,
+      sharePhoneNumber: params.sharePhoneNumber,
       cityId: params.cityId,
       address: params.address,
       equipmentIds: params.equipmentIds,
@@ -236,6 +243,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       fullName: params.fullName,
       username: params.username,
       phoneNumber: params.phoneNumber,
+      sharePhoneNumber: params.sharePhoneNumber,
       cityId: params.cityId,
       address: params.address,
       equipmentIds: params.equipmentIds
@@ -334,13 +342,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       setSearchResults(results);
     } catch (error) {
-      const fallbackResults = searchNearbyEquipment({
-        equipmentIds: params.equipmentIds,
-        baseLat,
-        baseLng
-      }).filter((result) => result.user.id !== currentUser.id);
-
-      setSearchResults(fallbackResults);
+      setSearchResults([]);
+      throw error;
     }
 
     setLastSearchMode(params.searchMode);
