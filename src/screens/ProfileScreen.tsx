@@ -10,10 +10,16 @@ import { colors } from "../theme/colors";
 import { spacing } from "../constants/spacing";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
-const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
 
 export function ProfileScreen({ navigation }: Props) {
   const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
+  const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
+  const allowedAdminUsernames = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "")
+    .split(",")
+    .map((username: string) => username.trim().toLowerCase())
+    .filter(Boolean);
+  const canAccessAdminUsers =
+    enableAdminUsers && !!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase());
   const myEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = myEquipment.reduce<Record<string, typeof myEquipment>>((groups, item) => {
     if (!groups[item.category]) {
@@ -178,7 +184,7 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
         </Pressable>
 
-        {enableAdminUsers ? (
+        {canAccessAdminUsers ? (
           <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("AdminUsers")}>
             <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color={colors.secondary} />
             <Text style={styles.secondaryButtonText}>ניהול משתמשים</Text>

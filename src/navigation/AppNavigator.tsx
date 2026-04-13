@@ -28,7 +28,6 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
 
 const navTheme = {
   ...DefaultTheme,
@@ -43,7 +42,14 @@ const navTheme = {
 };
 
 function NavigatorContent() {
-  const { hasCompletedRegistration, isHydrated } = useAppState();
+  const { currentUser, hasCompletedRegistration, isHydrated } = useAppState();
+  const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
+  const allowedAdminUsernames = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "")
+    .split(",")
+    .map((username: string) => username.trim().toLowerCase())
+    .filter(Boolean);
+  const canAccessAdminUsers =
+    enableAdminUsers && !!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase());
 
   if (!isHydrated) {
     return (
@@ -78,7 +84,7 @@ function NavigatorContent() {
         <Stack.Screen name="RequestEquipment" component={RequestEquipmentScreen} options={{ title: "פתיחת בקשה לציוד" }} />
         <Stack.Screen name="Results" component={ResultsScreen} options={{ title: "תוצאות לפי קרבה" }} />
         <Stack.Screen name="ResultsMap" component={ResultsMapScreen} options={{ title: "מפת תוצאות" }} />
-        {enableAdminUsers ? (
+        {canAccessAdminUsers ? (
           <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: "ניהול משתמשים" }} />
         ) : null}
       </Stack.Navigator>
