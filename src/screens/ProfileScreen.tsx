@@ -10,6 +10,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../constants/spacing";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
+const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
 
 export function ProfileScreen({ navigation }: Props) {
   const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
@@ -177,10 +178,12 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("AdminUsers")}>
-          <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color={colors.secondary} />
-          <Text style={styles.secondaryButtonText}>ניהול משתמשים</Text>
-        </Pressable>
+        {enableAdminUsers ? (
+          <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("AdminUsers")}>
+            <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color={colors.secondary} />
+            <Text style={styles.secondaryButtonText}>ניהול משתמשים</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
           <MaterialCommunityIcons name="delete-outline" size={18} color="#FFFFFF" />

@@ -28,6 +28,7 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
 
 const navTheme = {
   ...DefaultTheme,
@@ -77,7 +78,9 @@ function NavigatorContent() {
         <Stack.Screen name="RequestEquipment" component={RequestEquipmentScreen} options={{ title: "פתיחת בקשה לציוד" }} />
         <Stack.Screen name="Results" component={ResultsScreen} options={{ title: "תוצאות לפי קרבה" }} />
         <Stack.Screen name="ResultsMap" component={ResultsMapScreen} options={{ title: "מפת תוצאות" }} />
-        <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: "ניהול משתמשים" }} />
+        {enableAdminUsers ? (
+          <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: "ניהול משתמשים" }} />
+        ) : null}
       </Stack.Navigator>
     </NavigationContainer>
   );
