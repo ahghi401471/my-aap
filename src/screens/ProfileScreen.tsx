@@ -177,6 +177,11 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
         </Pressable>
 
+        <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("AdminUsers")}>
+          <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color={colors.secondary} />
+          <Text style={styles.secondaryButtonText}>ניהול משתמשים</Text>
+        </Pressable>
+
         <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
           <MaterialCommunityIcons name="delete-outline" size={18} color="#FFFFFF" />
           <Text style={styles.deleteButtonText}>מחק חשבון</Text>

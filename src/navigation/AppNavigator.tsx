@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 
 import { AppStateProvider, useAppState } from "../hooks/useAppState";
 import { LoginScreen } from "../screens/LoginScreen";
+import { AdminUsersScreen } from "../screens/AdminUsersScreen";
 import { MyEquipmentScreen } from "../screens/MyEquipmentScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
@@ -23,6 +24,7 @@ export type RootStackParamList = {
   RequestEquipment: undefined;
   Results: undefined;
   ResultsMap: undefined;
+  AdminUsers: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +77,7 @@ function NavigatorContent() {
         <Stack.Screen name="RequestEquipment" component={RequestEquipmentScreen} options={{ title: "פתיחת בקשה לציוד" }} />
         <Stack.Screen name="Results" component={ResultsScreen} options={{ title: "תוצאות לפי קרבה" }} />
         <Stack.Screen name="ResultsMap" component={ResultsMapScreen} options={{ title: "מפת תוצאות" }} />
+        <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: "ניהול משתמשים" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

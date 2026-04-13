@@ -414,6 +414,122 @@ app.delete("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
+app.get("/api/admin/users", async (_request, response) => {
+  const users = await rowsFromQuery<{
+    id: string;
+    full_name: string;
+    username: string | null;
+    phone_number: string;
+    city_id: string;
+    share_phone_number: number;
+    receive_broadcasts: number;
+  }>(
+    "SELECT id, full_name, username, phone_number, city_id, share_phone_number, receive_broadcasts FROM users ORDER BY full_name"
+  )();
+
+  response.json(
+    users.map((user) => ({
+      id: user.id,
+      fullName: user.full_name,
+      username: user.username ?? "",
+      phoneNumber: user.phone_number,
+      cityId: user.city_id,
+      sharePhoneNumber: Boolean(user.share_phone_number),
+      receiveBroadcasts: Boolean(user.receive_broadcasts)
+    }))
+  );
+});
+
+app.post("/api/admin/users", async (request, response) => {
+  const {
+    fullName,
+    username,
+    password,
+    phoneNumber,
+    cityId,
+    equipmentIds,
+    sharePhoneNumber,
+    receiveBroadcasts
+  } = request.body as {
+    fullName: string;
+    username: string;
+    password: string;
+    phoneNumber: string;
+    cityId: string;
+    equipmentIds: string[];
+    sharePhoneNumber?: boolean;
+    receiveBroadcasts?: boolean;
+  };
+
+  if (
+    !fullName?.trim() ||
+    !username?.trim() ||
+    !password?.trim() ||
+    password.trim().length < 6 ||
+    !phoneNumber?.trim() ||
+    !cityId ||
+    !Array.isArray(equipmentIds) ||
+    equipmentIds.length === 0
+  ) {
+    response.status(400).json({ message: "Missing required fields" });
+    return;
+  }
+
+  const db = await getDb();
+  const existingUsername = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+    [username.trim()]
+  )();
+
+  if (existingUsername.length > 0) {
+    response.status(409).json({ message: "Username already exists" });
+    return;
+  }
+
+  const userId = randomUUID();
+  await db.execute(
+    `INSERT INTO users (
+      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, city_id
+    )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId,
+      fullName.trim(),
+      username.trim(),
+      hashPassword(password.trim()),
+      phoneNumber.trim(),
+      sharePhoneNumber === false ? 0 : 1,
+      receiveBroadcasts === false ? 0 : 1,
+      cityId
+    ]
+  );
+
+  for (const equipmentId of equipmentIds) {
+    await db.execute("INSERT INTO user_equipment (user_id, equipment_id) VALUES (?, ?)", [userId, equipmentId]);
+  }
+
+  await persistDb();
+  response.status(201).json({ id: userId });
+});
+
+app.delete("/api/admin/users/:id", async (request, response) => {
+  const userId = request.params.id;
+  const db = await getDb();
+  const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();
+
+  if (existingUser.length === 0) {
+    response.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
+  await db.execute("DELETE FROM broadcast_requests WHERE requester_user_id = ?", [userId]);
+  await db.execute("DELETE FROM users WHERE id = ?", [userId]);
+  await persistDb();
+
+  response.json({ ok: true });
+});
+
 app.post("/api/requests/search", async (request, response) => {
   const { requesterUserId, equipmentIds, searchMode, cityId, streetName, houseNumber, lat, lng } = request.body as {
     requesterUserId?: string;

@@ -45,6 +45,16 @@ type SearchApiRow = {
   distanceBasis?: "city" | "street";
 };
 
+export type AdminUserRow = {
+  id: string;
+  fullName: string;
+  username: string;
+  phoneNumber: string;
+  cityId: string;
+  sharePhoneNumber: boolean;
+  receiveBroadcasts: boolean;
+};
+
 async function apiFetch<T>(path: string, init?: RequestInit) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -173,6 +183,30 @@ export async function broadcastEquipmentRequest(payload: BroadcastRequestPayload
       body: JSON.stringify(payload)
     }
   );
+}
+
+export async function listAdminUsers() {
+  return apiFetch<AdminUserRow[]>("/api/admin/users");
+}
+
+export async function createAdminUser(payload: {
+  fullName: string;
+  username: string;
+  password: string;
+  phoneNumber: string;
+  cityId: string;
+  equipmentIds: string[];
+}) {
+  return apiFetch<{ id: string }>("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAdminUser(userId: string) {
+  await apiFetch<{ ok: true }>(`/api/admin/users/${userId}`, {
+    method: "DELETE"
+  });
 }
 
 export { API_BASE_URL };
