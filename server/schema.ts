@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number TEXT NOT NULL,
   share_phone_number INTEGER NOT NULL DEFAULT 0,
   receive_broadcasts INTEGER NOT NULL DEFAULT 1,
+  is_admin INTEGER NOT NULL DEFAULT 0,
   city_id TEXT NOT NULL REFERENCES cities(id),
   street_name TEXT,
   house_number TEXT,
@@ -63,6 +64,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS share_phone_number INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_broadcasts INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);
 CREATE TABLE IF NOT EXISTS broadcast_requests (
   id TEXT PRIMARY KEY,

@@ -49,7 +49,9 @@ function NavigatorContent() {
     .map((username: string) => username.trim().toLowerCase())
     .filter(Boolean);
   const canAccessAdminUsers =
-    enableAdminUsers && !!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase());
+    enableAdminUsers &&
+    (currentUser.isAdmin ||
+      (!!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase())));
 
   if (!isHydrated) {
     return (

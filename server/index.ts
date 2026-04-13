@@ -15,13 +15,20 @@ app.use(cors());
 app.use(express.json());
 
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME ?? "hagai").trim().toLowerCase();
-const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD ?? "401471").trim();
 
-function hasAdminAccess(request: express.Request) {
-  const username = String(request.header("x-admin-username") ?? "").trim().toLowerCase();
-  const password = String(request.header("x-admin-password") ?? "").trim();
+async function hasAdminAccess(request: express.Request) {
+  const requesterUserId = String(request.header("x-user-id") ?? "").trim();
 
-  return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
+  if (!requesterUserId) {
+    return false;
+  }
+
+  const adminUsers = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE id = ? AND is_admin = 1",
+    [requesterUserId]
+  )();
+
+  return adminUsers.length > 0;
 }
 
 function rowsFromQuery<T>(sql: string, params: Array<string | number | null> = []) {
@@ -82,6 +89,7 @@ app.get("/api/users/:id", async (request, response) => {
     phone_number: string;
     share_phone_number: number;
     receive_broadcasts: number;
+    is_admin: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -111,6 +119,7 @@ app.get("/api/users/:id", async (request, response) => {
     phoneNumber: user.phone_number,
     sharePhoneNumber: Boolean(user.share_phone_number),
     receiveBroadcasts: Boolean(user.receive_broadcasts),
+    isAdmin: Boolean(user.is_admin),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -200,10 +209,10 @@ app.post("/api/users/register", async (request, response) => {
 
   await db.execute(
     `INSERT INTO users (
-      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, city_id, street_name, house_number, lat, lng,
+      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, is_admin, city_id, street_name, house_number, lat, lng,
       temporary_city_id, temporary_duration_hours, temporary_expires_at
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       fullName.trim(),
@@ -212,6 +221,7 @@ app.post("/api/users/register", async (request, response) => {
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
       nextReceiveBroadcasts ? 1 : 0,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -309,7 +319,7 @@ app.put("/api/users/:id", async (request, response) => {
 
   await db.execute(
     `UPDATE users
-     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, share_phone_number = ?, receive_broadcasts = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
+     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, share_phone_number = ?, receive_broadcasts = ?, is_admin = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
          temporary_city_id = ?, temporary_duration_hours = ?, temporary_expires_at = ?
      WHERE id = ?`,
     [
@@ -319,6 +329,7 @@ app.put("/api/users/:id", async (request, response) => {
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
       nextReceiveBroadcasts ? 1 : 0,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -360,6 +371,7 @@ app.post("/api/auth/login", async (request, response) => {
     phone_number: string;
     share_phone_number: number;
     receive_broadcasts: number;
+    is_admin: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -389,6 +401,7 @@ app.post("/api/auth/login", async (request, response) => {
     phoneNumber: user.phone_number,
     sharePhoneNumber: Boolean(user.share_phone_number),
     receiveBroadcasts: Boolean(user.receive_broadcasts),
+    isAdmin: Boolean(user.is_admin),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -425,7 +438,7 @@ app.delete("/api/users/:id", async (request, response) => {
 });
 
 app.get("/api/admin/users", async (request, response) => {
-  if (!hasAdminAccess(request)) {
+  if (!(await hasAdminAccess(request))) {
     response.status(403).json({ message: "Admin access required" });
     return;
   }
@@ -455,7 +468,7 @@ app.get("/api/admin/users", async (request, response) => {
 });
 
 app.post("/api/admin/users", async (request, response) => {
-  if (!hasAdminAccess(request)) {
+  if (!(await hasAdminAccess(request))) {
     response.status(403).json({ message: "Admin access required" });
     return;
   }
@@ -507,9 +520,9 @@ app.post("/api/admin/users", async (request, response) => {
   const userId = randomUUID();
   await db.execute(
     `INSERT INTO users (
-      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, city_id
+      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, is_admin, city_id
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       fullName.trim(),
@@ -518,6 +531,7 @@ app.post("/api/admin/users", async (request, response) => {
       phoneNumber.trim(),
       sharePhoneNumber === false ? 0 : 1,
       receiveBroadcasts === false ? 0 : 1,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
       cityId
     ]
   );
@@ -531,7 +545,7 @@ app.post("/api/admin/users", async (request, response) => {
 });
 
 app.delete("/api/admin/users/:id", async (request, response) => {
-  if (!hasAdminAccess(request)) {
+  if (!(await hasAdminAccess(request))) {
     response.status(403).json({ message: "Admin access required" });
     return;
   }

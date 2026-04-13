@@ -19,7 +19,9 @@ export function ProfileScreen({ navigation }: Props) {
     .map((username: string) => username.trim().toLowerCase())
     .filter(Boolean);
   const canAccessAdminUsers =
-    enableAdminUsers && !!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase());
+    enableAdminUsers &&
+    (currentUser.isAdmin ||
+      (!!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase())));
   const myEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = myEquipment.reduce<Record<string, typeof myEquipment>>((groups, item) => {
     if (!groups[item.category]) {

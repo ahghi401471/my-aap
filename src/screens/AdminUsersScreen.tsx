@@ -6,7 +6,7 @@ import { AutocompleteCityInput } from "../components/AutocompleteCityInput";
 import { EquipmentPicker } from "../components/EquipmentPicker";
 import { SectionCard } from "../components/SectionCard";
 import { spacing } from "../constants/spacing";
-import { cities, equipmentCatalog } from "../hooks/useAppState";
+import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { AdminUserRow, createAdminUser, deleteAdminUser, listAdminUsers } from "../services/api";
 import { colors } from "../theme/colors";
@@ -14,6 +14,7 @@ import { colors } from "../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "AdminUsers">;
 
 export function AdminUsersScreen({}: Props) {
+  const { currentUser } = useAppState();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +40,7 @@ export function AdminUsersScreen({}: Props) {
   async function loadUsers() {
     setIsLoading(true);
     try {
-      const rows = await listAdminUsers();
+      const rows = await listAdminUsers(currentUser.id);
       setUsers(rows);
     } catch (error) {
       Alert.alert("שגיאה", "לא הצלחנו לטעון את רשימת המשתמשים.");
@@ -60,6 +61,7 @@ export function AdminUsersScreen({}: Props) {
     setIsSubmitting(true);
     try {
       await createAdminUser({
+        requesterUserId: currentUser.id,
         fullName: fullName.trim(),
         username: username.trim(),
         password: password.trim(),
@@ -90,7 +92,7 @@ export function AdminUsersScreen({}: Props) {
         style: "destructive",
         onPress: async () => {
           try {
-            await deleteAdminUser(user.id);
+            await deleteAdminUser(user.id, currentUser.id);
             await loadUsers();
           } catch (error) {
             Alert.alert("שגיאה", "לא הצלחנו להסיר את המשתמש.");

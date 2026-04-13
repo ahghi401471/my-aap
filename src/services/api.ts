@@ -4,16 +4,6 @@ import { BroadcastRequestPayload, SearchResult, TemporaryLocation, User } from "
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://my-aap-ss8w.onrender.com";
 
-const ADMIN_USERNAME = process.env.EXPO_PUBLIC_ADMIN_USERNAME ?? "hagai";
-const ADMIN_PASSWORD = process.env.EXPO_PUBLIC_ADMIN_PASSWORD ?? "401471";
-
-function adminHeaders() {
-  return {
-    "x-admin-username": ADMIN_USERNAME,
-    "x-admin-password": ADMIN_PASSWORD
-  };
-}
-
 type UserPayload = {
   fullName: string;
   username: string;
@@ -195,13 +185,14 @@ export async function broadcastEquipmentRequest(payload: BroadcastRequestPayload
   );
 }
 
-export async function listAdminUsers() {
+export async function listAdminUsers(requesterUserId: string) {
   return apiFetch<AdminUserRow[]>("/api/admin/users", {
-    headers: adminHeaders()
+    headers: { "x-user-id": requesterUserId }
   });
 }
 
 export async function createAdminUser(payload: {
+  requesterUserId: string;
   fullName: string;
   username: string;
   password: string;
@@ -211,15 +202,15 @@ export async function createAdminUser(payload: {
 }) {
   return apiFetch<{ id: string }>("/api/admin/users", {
     method: "POST",
-    headers: adminHeaders(),
+    headers: { "x-user-id": payload.requesterUserId },
     body: JSON.stringify(payload)
   });
 }
 
-export async function deleteAdminUser(userId: string) {
+export async function deleteAdminUser(userId: string, requesterUserId: string) {
   await apiFetch<{ ok: true }>(`/api/admin/users/${userId}`, {
     method: "DELETE",
-    headers: adminHeaders()
+    headers: { "x-user-id": requesterUserId }
   });
 }
 

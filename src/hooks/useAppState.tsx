@@ -71,6 +71,10 @@ const defaultUser = {
 
 const STORAGE_KEY = "equipment-nearby-app-state";
 const DEFAULT_SEARCH_SUMMARY = "לפי המיקום שבחרת";
+const ADMIN_USERNAME = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "hagai")
+  .split(",")
+  .map((username: string) => username.trim().toLowerCase())
+  .filter(Boolean);
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
 
@@ -203,6 +207,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ...currentUser,
       fullName: params.fullName,
       username: params.username,
+      isAdmin: ADMIN_USERNAME.includes(params.username.trim().toLowerCase()),
       phoneNumber: params.phoneNumber,
       sharePhoneNumber: params.sharePhoneNumber,
       receiveBroadcasts: params.receiveBroadcasts,
@@ -251,6 +256,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       id: registration.id,
       fullName: params.fullName,
       username: params.username,
+      isAdmin: ADMIN_USERNAME.includes(params.username.trim().toLowerCase()),
       phoneNumber: params.phoneNumber,
       sharePhoneNumber: params.sharePhoneNumber,
       receiveBroadcasts: params.receiveBroadcasts,
