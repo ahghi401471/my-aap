@@ -14,6 +14,16 @@ const port = Number(process.env.PORT ?? 3001);
 app.use(cors());
 app.use(express.json());
 
+const ADMIN_USERNAME = (process.env.ADMIN_USERNAME ?? "hagai").trim().toLowerCase();
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD ?? "401471").trim();
+
+function hasAdminAccess(request: express.Request) {
+  const username = String(request.header("x-admin-username") ?? "").trim().toLowerCase();
+  const password = String(request.header("x-admin-password") ?? "").trim();
+
+  return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
+}
+
 function rowsFromQuery<T>(sql: string, params: Array<string | number | null> = []) {
   return async () => {
     const db = await getDb();
@@ -414,7 +424,11 @@ app.delete("/api/users/:id", async (request, response) => {
   response.json({ ok: true });
 });
 
-app.get("/api/admin/users", async (_request, response) => {
+app.get("/api/admin/users", async (request, response) => {
+  if (!hasAdminAccess(request)) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
   const users = await rowsFromQuery<{
     id: string;
     full_name: string;
@@ -441,6 +455,10 @@ app.get("/api/admin/users", async (_request, response) => {
 });
 
 app.post("/api/admin/users", async (request, response) => {
+  if (!hasAdminAccess(request)) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
   const {
     fullName,
     username,
@@ -513,6 +531,10 @@ app.post("/api/admin/users", async (request, response) => {
 });
 
 app.delete("/api/admin/users/:id", async (request, response) => {
+  if (!hasAdminAccess(request)) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
   const userId = request.params.id;
   const db = await getDb();
   const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();

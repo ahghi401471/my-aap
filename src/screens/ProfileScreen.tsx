@@ -14,7 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 export function ProfileScreen({ navigation }: Props) {
   const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
   const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
-  const allowedAdminUsernames = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "")
+  const allowedAdminUsernames = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "hagai")
     .split(",")
     .map((username: string) => username.trim().toLowerCase())
     .filter(Boolean);
