@@ -42,6 +42,7 @@ export type User = {
   username?: string;
   phoneNumber: string;
   sharePhoneNumber?: boolean;
+  receiveBroadcasts?: boolean;
   cityId: string;
   address?: AddressLocation;
   equipmentIds: string[];
@@ -57,6 +58,20 @@ export type RequestRecord = {
   lat?: number;
   lng?: number;
   address?: AddressLocation;
+};
+
+export type ReturnPolicy = "within_week" | "within_two_weeks" | "no_return" | "prefer_no_return";
+
+export type BroadcastRequestPayload = {
+  requesterUserId: string;
+  equipmentIds: string[];
+  searchMode: SearchMode;
+  cityId?: string;
+  streetName?: string;
+  houseNumber?: string;
+  lat?: number;
+  lng?: number;
+  returnPolicy: ReturnPolicy;
 };
 
 export type SearchResult = {

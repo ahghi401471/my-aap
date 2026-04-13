@@ -1,6 +1,6 @@
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
-import { SearchResult, TemporaryLocation, User } from "../types/models";
+import { BroadcastRequestPayload, SearchResult, TemporaryLocation, User } from "../types/models";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://my-aap-ss8w.onrender.com";
 
@@ -10,6 +10,7 @@ type UserPayload = {
   password?: string;
   phoneNumber: string;
   sharePhoneNumber: boolean;
+  receiveBroadcasts: boolean;
   cityId: string;
   address?: User["address"];
   equipmentIds: string[];
@@ -70,6 +71,7 @@ export async function registerUser(payload: UserPayload) {
       password: payload.password,
       phoneNumber: payload.phoneNumber,
       sharePhoneNumber: payload.sharePhoneNumber,
+      receiveBroadcasts: payload.receiveBroadcasts,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -90,6 +92,7 @@ export async function updateUser(userId: string, payload: UserPayload) {
       password: payload.password,
       phoneNumber: payload.phoneNumber,
       sharePhoneNumber: payload.sharePhoneNumber,
+      receiveBroadcasts: payload.receiveBroadcasts,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -160,6 +163,16 @@ export async function searchEquipment(payload: SearchPayload) {
     })
     .filter((item): item is SearchResult => item !== null)
     .sort((left, right) => left.distanceKm - right.distanceKm);
+}
+
+export async function broadcastEquipmentRequest(payload: BroadcastRequestPayload) {
+  return apiFetch<{ recipientsCount: number; message: string; recipients: Array<{ id: string; fullName: string; phoneNumber: string }> }>(
+    "/api/requests/broadcast",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
 }
 
 export { API_BASE_URL };

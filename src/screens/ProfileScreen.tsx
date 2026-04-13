@@ -85,6 +85,10 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.value}>{selectedCity.name}</Text>
           <Text style={styles.label}>עיר</Text>
         </View>
+        <View style={styles.row}>
+          <Text style={styles.value}>{currentUser.receiveBroadcasts ? "כן" : "לא"}</Text>
+          <Text style={styles.label}>קבלת הודעות מהאפליקציה</Text>
+        </View>
         <View style={styles.addressBlock}>
           <Text style={styles.label}>כתובת מגורים</Text>
           <Text style={styles.addressValue}>
