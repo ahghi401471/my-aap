@@ -144,7 +144,7 @@ app.post("/api/users/register", async (request, response) => {
     password: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
-    receiveBroadcasts: boolean;
+    receiveBroadcasts?: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -165,7 +165,6 @@ app.post("/api/users/register", async (request, response) => {
     password.trim().length < 6 ||
     !phoneNumber?.trim() ||
     typeof sharePhoneNumber !== "boolean" ||
-    typeof receiveBroadcasts !== "boolean" ||
     !sharePhoneNumber ||
     !cityId ||
     !Array.isArray(equipmentIds) ||
@@ -174,6 +173,8 @@ app.post("/api/users/register", async (request, response) => {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
+
+  const nextReceiveBroadcasts = typeof receiveBroadcasts === "boolean" ? receiveBroadcasts : true;
 
   const userId = randomUUID();
   const db = await getDb();
@@ -200,7 +201,7 @@ app.post("/api/users/register", async (request, response) => {
       hashPassword(password.trim()),
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
-      receiveBroadcasts ? 1 : 0,
+      nextReceiveBroadcasts ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -242,7 +243,7 @@ app.put("/api/users/:id", async (request, response) => {
     password?: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
-    receiveBroadcasts: boolean;
+    receiveBroadcasts?: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -261,7 +262,6 @@ app.put("/api/users/:id", async (request, response) => {
     !username?.trim() ||
     !phoneNumber?.trim() ||
     typeof sharePhoneNumber !== "boolean" ||
-    typeof receiveBroadcasts !== "boolean" ||
     !cityId ||
     !Array.isArray(equipmentIds) ||
     equipmentIds.length === 0
@@ -269,6 +269,8 @@ app.put("/api/users/:id", async (request, response) => {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
+
+  const nextReceiveBroadcasts = typeof receiveBroadcasts === "boolean" ? receiveBroadcasts : true;
 
   const db = await getDb();
   const existingUser = await rowsFromQuery<{ id: string; password_hash: string | null }>(
@@ -306,7 +308,7 @@ app.put("/api/users/:id", async (request, response) => {
       nextPasswordHash ?? null,
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
-      receiveBroadcasts ? 1 : 0,
+      nextReceiveBroadcasts ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
