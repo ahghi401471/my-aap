@@ -13,15 +13,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
 export function ProfileScreen({ navigation }: Props) {
   const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
-  const enableAdminUsers = process.env.EXPO_PUBLIC_ENABLE_ADMIN_USERS === "true";
-  const allowedAdminUsernames = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "hagai")
-    .split(",")
-    .map((username: string) => username.trim().toLowerCase())
-    .filter(Boolean);
   const canAccessAdminUsers =
-    enableAdminUsers &&
-    (currentUser.isAdmin ||
-      (!!currentUser.username && allowedAdminUsernames.includes(currentUser.username.toLowerCase())));
+    currentUser.isAdmin || (!!currentUser.username && currentUser.username.trim().toLowerCase() === "hagai");
   const myEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = myEquipment.reduce<Record<string, typeof myEquipment>>((groups, item) => {
     if (!groups[item.category]) {
