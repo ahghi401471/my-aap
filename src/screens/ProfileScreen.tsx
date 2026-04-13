@@ -13,6 +13,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
 export function ProfileScreen({ navigation }: Props) {
   const { activeTemporaryCity, clearTemporaryLocation, currentUser, deleteCurrentUser, selectedCity } = useAppState();
+  const canAccessAdminUsers =
+    currentUser.isAdmin || (!!currentUser.username && currentUser.username.trim().toLowerCase() === "hagai");
   const myEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = myEquipment.reduce<Record<string, typeof myEquipment>>((groups, item) => {
     if (!groups[item.category]) {
@@ -84,6 +86,10 @@ export function ProfileScreen({ navigation }: Props) {
         <View style={styles.row}>
           <Text style={styles.value}>{selectedCity.name}</Text>
           <Text style={styles.label}>עיר</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={styles.value}>{currentUser.receiveBroadcasts ? "כן" : "לא"}</Text>
+          <Text style={styles.label}>קבלת הודעות מהאפליקציה</Text>
         </View>
         <View style={styles.addressBlock}>
           <Text style={styles.label}>כתובת מגורים</Text>
@@ -172,6 +178,13 @@ export function ProfileScreen({ navigation }: Props) {
           <MaterialCommunityIcons name="playlist-edit" size={18} color={colors.secondary} />
           <Text style={styles.secondaryButtonText}>עריכת ציוד קיים</Text>
         </Pressable>
+
+        {canAccessAdminUsers ? (
+          <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate("AdminUsers")}>
+            <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color={colors.secondary} />
+            <Text style={styles.secondaryButtonText}>ניהול משתמשים</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
           <MaterialCommunityIcons name="delete-outline" size={18} color="#FFFFFF" />

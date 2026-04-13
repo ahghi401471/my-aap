@@ -11,13 +11,13 @@ import { spacing } from "../constants/spacing";
 import { geocodeStreetAddress } from "../services/streets";
 import { cities, equipmentCatalog, useAppState } from "../hooks/useAppState";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { SearchMode, StreetSuggestion } from "../types/models";
+import { ReturnPolicy, SearchMode, StreetSuggestion } from "../types/models";
 import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "RequestEquipment">;
 
 export function RequestEquipmentScreen({ navigation }: Props) {
-  const { currentUser, selectedCity, runSearch } = useAppState();
+  const { currentUser, selectedCity, runSearch, sendBroadcastRequest } = useAppState();
   const availableEquipment = equipmentCatalog.filter((item) => currentUser.equipmentIds.includes(item.id));
   const groupedEquipment = availableEquipment.reduce<Record<string, typeof availableEquipment>>((groups, item) => {
     if (!groups[item.category]) {
@@ -35,6 +35,15 @@ export function RequestEquipmentScreen({ navigation }: Props) {
   const [houseNumber, setHouseNumber] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [returnPolicy, setReturnPolicy] = useState<ReturnPolicy>("within_week");
+
+  const returnPolicyOptions: Array<{ value: ReturnPolicy; label: string }> = [
+    { value: "within_week", label: "החזרה בתוך שבוע" },
+    { value: "within_two_weeks", label: "החזרה בתוך שבועיים" },
+    { value: "no_return", label: "ללא החזרה" },
+    { value: "prefer_no_return", label: "עדיפות ללא החזרה" }
+  ];
 
   const searchCity = useMemo(
     () => cities.find((city) => city.id === searchCityId) ?? selectedCity,
@@ -118,6 +127,100 @@ export function RequestEquipmentScreen({ navigation }: Props) {
     } finally {
       setIsSearching(false);
       setIsLoadingLocation(false);
+    }
+  }
+
+  function getSelectedEquipmentNames() {
+    return availableEquipment
+      .filter((item) => selectedEquipmentIds.includes(item.id))
+      .map((item) => item.name);
+  }
+
+  async function getSearchBaseLocation() {
+    if (searchMode === "gps") {
+      setIsLoadingLocation(true);
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+
+        if (!permission.granted) {
+          Alert.alert("הגישה למיקום נדחתה", "אפשר לעבור לחיפוש לפי עיר ורחוב.");
+          return null;
+        }
+
+        const currentPosition = await Location.getCurrentPositionAsync({});
+        return {
+          lat: currentPosition.coords.latitude,
+          lng: currentPosition.coords.longitude,
+          cityId: undefined as string | undefined,
+          streetName: undefined as string | undefined,
+          houseNumber: undefined as string | undefined
+        };
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    }
+
+    let baseLat = searchStreet?.lat;
+    let baseLng = searchStreet?.lng;
+
+    if (searchStreet && (houseNumber.trim() || typeof baseLat !== "number" || typeof baseLng !== "number")) {
+      const exactAddress = await geocodeStreetAddress({
+        cityName: searchCity.name,
+        streetName: searchStreet.name,
+        houseNumber: houseNumber.trim()
+      }).catch(() => null);
+
+      if (exactAddress) {
+        baseLat = exactAddress.lat;
+        baseLng = exactAddress.lng;
+      }
+    }
+
+    return {
+      lat: baseLat,
+      lng: baseLng,
+      cityId: searchCityId,
+      streetName: searchStreet?.name,
+      houseNumber: houseNumber.trim()
+    };
+  }
+
+  async function handleSendTemplateRequest() {
+    if (selectedEquipmentIds.length === 0 || !currentUser.id || currentUser.id === "guest-user") {
+      Alert.alert("צריך להתחבר לפני שליחה", "כדי לשלוח הודעה לאנשים באזור צריך משתמש רשום.");
+      return;
+    }
+
+    setIsSendingRequest(true);
+    try {
+      const baseLocation = await getSearchBaseLocation();
+
+      if (!baseLocation) {
+        return;
+      }
+
+      const selectedEquipmentNames = getSelectedEquipmentNames();
+      const result = await sendBroadcastRequest({
+        requesterUserId: currentUser.id,
+        equipmentIds: selectedEquipmentIds,
+        searchMode,
+        cityId: baseLocation.cityId,
+        streetName: baseLocation.streetName,
+        houseNumber: baseLocation.houseNumber,
+        lat: baseLocation.lat,
+        lng: baseLocation.lng,
+        returnPolicy
+      });
+
+      Alert.alert(
+        "הבקשה נשלחה",
+        `${result.message}\n\nנשלח ל-${result.recipientsCount} אנשים.`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "נסה שוב בעוד רגע.";
+      Alert.alert("לא הצלחנו לשלוח את הבקשה", message);
+    } finally {
+      setIsSendingRequest(false);
     }
   }
 
@@ -235,6 +338,26 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         )}
       </SectionCard>
 
+      <SectionCard title="תבנית הודעה">
+        <Text style={styles.helperText}>הודעה קבועה שתישלח: "דרוש ציוד סכרת באזורך".</Text>
+        <Text style={styles.helperText}>הציוד שנשלח עם ההודעה: {getSelectedEquipmentNames().join(", ") || "לא נבחר ציוד"}</Text>
+        <Text style={styles.helperText}>בחר תנאי החזרה:</Text>
+        <View style={styles.equipmentButtonGroup}>
+          {returnPolicyOptions.map((option) => {
+            const selected = returnPolicy === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={[styles.equipmentButton, selected ? styles.equipmentButtonSelected : null]}
+                onPress={() => setReturnPolicy(option.value)}
+              >
+                <Text style={[styles.equipmentButtonText, selected ? styles.equipmentButtonTextSelected : null]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </SectionCard>
+
       <Pressable
         style={[
           styles.primaryButton,
@@ -248,6 +371,22 @@ export function RequestEquipmentScreen({ navigation }: Props) {
         <MaterialCommunityIcons name="map-search-outline" size={20} color="#FFFFFF" />
         <Text style={styles.primaryButtonText}>
           {isLoadingLocation ? "מאתר מיקום..." : isSearching ? "מחפש..." : "חפש ציוד קרוב"}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[
+          styles.secondaryActionButton,
+          isLoadingLocation || isSendingRequest || availableEquipment.length === 0 || selectedEquipmentIds.length === 0
+            ? styles.primaryButtonDisabled
+            : null
+        ]}
+        onPress={handleSendTemplateRequest}
+        disabled={isLoadingLocation || isSendingRequest || availableEquipment.length === 0 || selectedEquipmentIds.length === 0}
+      >
+        <MaterialCommunityIcons name="message-text-outline" size={20} color={colors.secondary} />
+        <Text style={styles.secondaryActionButtonText}>
+          {isSendingRequest ? "שולח בקשה..." : "שלח הודעת תבנית בסביבה"}
         </Text>
       </Pressable>
     </ScrollView>
@@ -376,6 +515,22 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  secondaryActionButton: {
+    backgroundColor: colors.secondarySoft,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.secondary
+  },
+  secondaryActionButtonText: {
+    color: colors.secondary,
     fontSize: 16,
     fontWeight: "700"
   }

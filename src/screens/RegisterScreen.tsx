@@ -24,6 +24,7 @@ export function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState(currentUser.phoneNumber);
   const [sharePhoneNumber, setSharePhoneNumber] = useState(currentUser.sharePhoneNumber ?? false);
+  const [receiveBroadcasts, setReceiveBroadcasts] = useState(currentUser.receiveBroadcasts ?? true);
   const [cityId, setCityId] = useState(currentUser.fullName ? selectedCity.id : "");
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>(myEquipmentIds);
   const [houseNumber, setHouseNumber] = useState(currentUser.address?.houseNumber ?? "");
@@ -102,6 +103,7 @@ export function RegisterScreen({ navigation }: Props) {
           password: password.trim() || undefined,
           phoneNumber: phoneNumber.trim(),
           sharePhoneNumber,
+          receiveBroadcasts,
           cityId,
           address: nextAddress
         });
@@ -113,6 +115,7 @@ export function RegisterScreen({ navigation }: Props) {
           password: password.trim(),
           phoneNumber: phoneNumber.trim(),
           sharePhoneNumber,
+          receiveBroadcasts,
           cityId,
           address: nextAddress,
           equipmentIds: selectedEquipmentIds
@@ -229,6 +232,15 @@ export function RegisterScreen({ navigation }: Props) {
             color={sharePhoneNumber ? colors.primary : colors.muted}
           />
           <Text style={styles.checkboxText}>אני מאשר שמספר הפלאפון שלי ישותף עם אנשים אחרים לצורך יצירת קשר</Text>
+        </Pressable>
+
+        <Pressable style={styles.checkboxRow} onPress={() => setReceiveBroadcasts((current) => !current)}>
+          <MaterialCommunityIcons
+            name={receiveBroadcasts ? "checkbox-marked" : "checkbox-blank-outline"}
+            size={24}
+            color={receiveBroadcasts ? colors.primary : colors.muted}
+          />
+          <Text style={styles.checkboxText}>אני רוצה לקבל הודעות בקשה מהאפליקציה</Text>
         </Pressable>
 
         <Pressable

@@ -14,6 +14,18 @@ type Props = NativeStackScreenProps<RootStackParamList, "Results">;
 export function ResultsScreen({ navigation }: Props) {
   const { searchResults, lastSearchSummary } = useAppState();
 
+  function formatDistanceLabel(distanceKm: number, distanceBasis: "street" | "city") {
+    if (distanceBasis === "city") {
+      return "לפי עיר בלבד";
+    }
+
+    if (distanceKm <= 0.1) {
+      return "פחות מ-0.1 ק\"מ";
+    }
+
+    return `${distanceKm.toFixed(1)} ק\"מ`;
+  }
+
   const groupedResults = useMemo(() => {
     const grouped = searchResults.reduce<Record<string, SearchResult[]>>((accumulator, result) => {
       if (!accumulator[result.user.id]) {
@@ -81,7 +93,7 @@ export function ResultsScreen({ navigation }: Props) {
                 <Text style={styles.label}>רמת דיוק</Text>
               </View>
               <View style={styles.resultRow}>
-                <Text style={styles.distance}>{firstResult.distanceKm.toFixed(1)} ק"מ</Text>
+                <Text style={styles.distance}>{formatDistanceLabel(firstResult.distanceKm, firstResult.distanceBasis)}</Text>
                 <Text style={styles.label}>מרחק משוער</Text>
               </View>
               <View style={styles.resultRow}>
