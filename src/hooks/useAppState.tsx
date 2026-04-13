@@ -4,8 +4,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
 import { mockUsers } from "../data/mockUsers";
-import { deleteUser, loginUser, registerUser, searchEquipment, updateUser } from "../services/api";
-import { AddressLocation, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
+import { broadcastEquipmentRequest, deleteUser, loginUser, registerUser, searchEquipment, updateUser } from "../services/api";
+import { AddressLocation, BroadcastRequestPayload, City, SearchMode, SearchResult, TemporaryLocation, User } from "../types/models";
 
 type AppStateContextValue = {
   isHydrated: boolean;
@@ -23,6 +23,7 @@ type AppStateContextValue = {
     password?: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts: boolean;
     cityId: string;
     address?: AddressLocation;
   }) => Promise<void>;
@@ -33,6 +34,7 @@ type AppStateContextValue = {
     password: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts: boolean;
     cityId: string;
     address?: AddressLocation;
     equipmentIds: string[];
@@ -51,6 +53,7 @@ type AppStateContextValue = {
     streetName?: string;
     houseNumber?: string;
   }) => Promise<void>;
+  sendBroadcastRequest: (params: BroadcastRequestPayload) => Promise<{ recipientsCount: number; message: string }>;
 };
 
 const defaultUser = {
@@ -60,6 +63,7 @@ const defaultUser = {
   username: "",
   phoneNumber: "",
   sharePhoneNumber: false,
+  receiveBroadcasts: true,
   equipmentIds: [],
   address: undefined,
   temporaryLocation: undefined
@@ -67,6 +71,10 @@ const defaultUser = {
 
 const STORAGE_KEY = "equipment-nearby-app-state";
 const DEFAULT_SEARCH_SUMMARY = "לפי המיקום שבחרת";
+const ADMIN_USERNAME = (process.env.EXPO_PUBLIC_ADMIN_USERNAMES ?? "hagai")
+  .split(",")
+  .map((username: string) => username.trim().toLowerCase())
+  .filter(Boolean);
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(undefined);
 
@@ -174,6 +182,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         password: options?.password,
         phoneNumber: nextUser.phoneNumber,
         sharePhoneNumber: nextUser.sharePhoneNumber ?? false,
+        receiveBroadcasts: nextUser.receiveBroadcasts ?? true,
         cityId: nextUser.cityId,
         address: nextUser.address,
         equipmentIds: nextEquipmentIds,
@@ -190,6 +199,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     password?: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts: boolean;
     cityId: string;
     address?: AddressLocation;
   }) {
@@ -197,8 +207,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ...currentUser,
       fullName: params.fullName,
       username: params.username,
+      isAdmin: ADMIN_USERNAME.includes(params.username.trim().toLowerCase()),
       phoneNumber: params.phoneNumber,
       sharePhoneNumber: params.sharePhoneNumber,
+      receiveBroadcasts: params.receiveBroadcasts,
       cityId: params.cityId,
       address: params.address
     };
@@ -221,6 +233,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     password: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts: boolean;
     cityId: string;
     address?: AddressLocation;
     equipmentIds: string[];
@@ -231,6 +244,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       password: params.password,
       phoneNumber: params.phoneNumber,
       sharePhoneNumber: params.sharePhoneNumber,
+      receiveBroadcasts: params.receiveBroadcasts,
       cityId: params.cityId,
       address: params.address,
       equipmentIds: params.equipmentIds,
@@ -242,8 +256,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       id: registration.id,
       fullName: params.fullName,
       username: params.username,
+      isAdmin: ADMIN_USERNAME.includes(params.username.trim().toLowerCase()),
       phoneNumber: params.phoneNumber,
       sharePhoneNumber: params.sharePhoneNumber,
+      receiveBroadcasts: params.receiveBroadcasts,
       cityId: params.cityId,
       address: params.address,
       equipmentIds: params.equipmentIds
@@ -350,6 +366,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setLastSearchSummary(params.searchSummary ?? DEFAULT_SEARCH_SUMMARY);
   }
 
+  async function sendBroadcastRequest(params: BroadcastRequestPayload) {
+    const result = await broadcastEquipmentRequest(params);
+    return {
+      recipientsCount: result.recipientsCount,
+      message: result.message
+    };
+  }
+
   return (
     <AppStateContext.Provider
       value={{
@@ -369,7 +393,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setTemporaryLocation,
         clearTemporaryLocation,
         deleteCurrentUser,
-        runSearch
+        runSearch,
+        sendBroadcastRequest
       }}
     >
       {children}

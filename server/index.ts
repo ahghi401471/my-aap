@@ -14,6 +14,23 @@ const port = Number(process.env.PORT ?? 3001);
 app.use(cors());
 app.use(express.json());
 
+const ADMIN_USERNAME = (process.env.ADMIN_USERNAME ?? "hagai").trim().toLowerCase();
+
+async function hasAdminAccess(request: express.Request) {
+  const requesterUserId = String(request.header("x-user-id") ?? "").trim();
+
+  if (!requesterUserId) {
+    return false;
+  }
+
+  const adminUsers = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE id = ? AND is_admin = 1",
+    [requesterUserId]
+  )();
+
+  return adminUsers.length > 0;
+}
+
 function rowsFromQuery<T>(sql: string, params: Array<string | number | null> = []) {
   return async () => {
     const db = await getDb();
@@ -71,6 +88,8 @@ app.get("/api/users/:id", async (request, response) => {
     username: string | null;
     phone_number: string;
     share_phone_number: number;
+    receive_broadcasts: number;
+    is_admin: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -99,6 +118,8 @@ app.get("/api/users/:id", async (request, response) => {
     username: user.username ?? undefined,
     phoneNumber: user.phone_number,
     sharePhoneNumber: Boolean(user.share_phone_number),
+    receiveBroadcasts: Boolean(user.receive_broadcasts),
+    isAdmin: Boolean(user.is_admin),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -128,6 +149,7 @@ app.post("/api/users/register", async (request, response) => {
     password,
     phoneNumber,
     sharePhoneNumber,
+    receiveBroadcasts,
     cityId,
     streetName,
     houseNumber,
@@ -141,6 +163,7 @@ app.post("/api/users/register", async (request, response) => {
     password: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts?: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -170,6 +193,8 @@ app.post("/api/users/register", async (request, response) => {
     return;
   }
 
+  const nextReceiveBroadcasts = typeof receiveBroadcasts === "boolean" ? receiveBroadcasts : true;
+
   const userId = randomUUID();
   const db = await getDb();
   const existingUsername = await rowsFromQuery<{ id: string }>(
@@ -184,10 +209,10 @@ app.post("/api/users/register", async (request, response) => {
 
   await db.execute(
     `INSERT INTO users (
-      id, full_name, username, password_hash, phone_number, share_phone_number, city_id, street_name, house_number, lat, lng,
+      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, is_admin, city_id, street_name, house_number, lat, lng,
       temporary_city_id, temporary_duration_hours, temporary_expires_at
     )
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       fullName.trim(),
@@ -195,6 +220,8 @@ app.post("/api/users/register", async (request, response) => {
       hashPassword(password.trim()),
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
+      nextReceiveBroadcasts ? 1 : 0,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -222,6 +249,7 @@ app.put("/api/users/:id", async (request, response) => {
     password,
     phoneNumber,
     sharePhoneNumber,
+    receiveBroadcasts,
     cityId,
     streetName,
     houseNumber,
@@ -235,6 +263,7 @@ app.put("/api/users/:id", async (request, response) => {
     password?: string;
     phoneNumber: string;
     sharePhoneNumber: boolean;
+    receiveBroadcasts?: boolean;
     cityId: string;
     streetName?: string;
     houseNumber?: string;
@@ -260,6 +289,8 @@ app.put("/api/users/:id", async (request, response) => {
     response.status(400).json({ message: "Missing required fields" });
     return;
   }
+
+  const nextReceiveBroadcasts = typeof receiveBroadcasts === "boolean" ? receiveBroadcasts : true;
 
   const db = await getDb();
   const existingUser = await rowsFromQuery<{ id: string; password_hash: string | null }>(
@@ -288,7 +319,7 @@ app.put("/api/users/:id", async (request, response) => {
 
   await db.execute(
     `UPDATE users
-     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, share_phone_number = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
+     SET full_name = ?, username = ?, password_hash = ?, phone_number = ?, share_phone_number = ?, receive_broadcasts = ?, is_admin = ?, city_id = ?, street_name = ?, house_number = ?, lat = ?, lng = ?,
          temporary_city_id = ?, temporary_duration_hours = ?, temporary_expires_at = ?
      WHERE id = ?`,
     [
@@ -297,6 +328,8 @@ app.put("/api/users/:id", async (request, response) => {
       nextPasswordHash ?? null,
       phoneNumber.trim(),
       sharePhoneNumber ? 1 : 0,
+      nextReceiveBroadcasts ? 1 : 0,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
       cityId,
       streetName ?? null,
       houseNumber ?? null,
@@ -337,6 +370,8 @@ app.post("/api/auth/login", async (request, response) => {
     password_hash: string | null;
     phone_number: string;
     share_phone_number: number;
+    receive_broadcasts: number;
+    is_admin: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -365,6 +400,8 @@ app.post("/api/auth/login", async (request, response) => {
     username: user.username ?? undefined,
     phoneNumber: user.phone_number,
     sharePhoneNumber: Boolean(user.share_phone_number),
+    receiveBroadcasts: Boolean(user.receive_broadcasts),
+    isAdmin: Boolean(user.is_admin),
     cityId: user.city_id,
     equipmentIds: equipment.map((item) => item.equipment_id),
     address: user.street_name
@@ -396,6 +433,135 @@ app.delete("/api/users/:id", async (request, response) => {
     response.status(404).json({ message: "User not found" });
     return;
   }
+
+  response.json({ ok: true });
+});
+
+app.get("/api/admin/users", async (request, response) => {
+  if (!(await hasAdminAccess(request))) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  const users = await rowsFromQuery<{
+    id: string;
+    full_name: string;
+    username: string | null;
+    phone_number: string;
+    city_id: string;
+    share_phone_number: number;
+    receive_broadcasts: number;
+  }>(
+    "SELECT id, full_name, username, phone_number, city_id, share_phone_number, receive_broadcasts FROM users ORDER BY full_name"
+  )();
+
+  response.json(
+    users.map((user) => ({
+      id: user.id,
+      fullName: user.full_name,
+      username: user.username ?? "",
+      phoneNumber: user.phone_number,
+      cityId: user.city_id,
+      sharePhoneNumber: Boolean(user.share_phone_number),
+      receiveBroadcasts: Boolean(user.receive_broadcasts)
+    }))
+  );
+});
+
+app.post("/api/admin/users", async (request, response) => {
+  if (!(await hasAdminAccess(request))) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  const {
+    fullName,
+    username,
+    password,
+    phoneNumber,
+    cityId,
+    equipmentIds,
+    sharePhoneNumber,
+    receiveBroadcasts
+  } = request.body as {
+    fullName: string;
+    username: string;
+    password: string;
+    phoneNumber: string;
+    cityId: string;
+    equipmentIds: string[];
+    sharePhoneNumber?: boolean;
+    receiveBroadcasts?: boolean;
+  };
+
+  if (
+    !fullName?.trim() ||
+    !username?.trim() ||
+    !password?.trim() ||
+    password.trim().length < 6 ||
+    !phoneNumber?.trim() ||
+    !cityId ||
+    !Array.isArray(equipmentIds) ||
+    equipmentIds.length === 0
+  ) {
+    response.status(400).json({ message: "Missing required fields" });
+    return;
+  }
+
+  const db = await getDb();
+  const existingUsername = await rowsFromQuery<{ id: string }>(
+    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+    [username.trim()]
+  )();
+
+  if (existingUsername.length > 0) {
+    response.status(409).json({ message: "Username already exists" });
+    return;
+  }
+
+  const userId = randomUUID();
+  await db.execute(
+    `INSERT INTO users (
+      id, full_name, username, password_hash, phone_number, share_phone_number, receive_broadcasts, is_admin, city_id
+    )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId,
+      fullName.trim(),
+      username.trim(),
+      hashPassword(password.trim()),
+      phoneNumber.trim(),
+      sharePhoneNumber === false ? 0 : 1,
+      receiveBroadcasts === false ? 0 : 1,
+      username.trim().toLowerCase() === ADMIN_USERNAME ? 1 : 0,
+      cityId
+    ]
+  );
+
+  for (const equipmentId of equipmentIds) {
+    await db.execute("INSERT INTO user_equipment (user_id, equipment_id) VALUES (?, ?)", [userId, equipmentId]);
+  }
+
+  await persistDb();
+  response.status(201).json({ id: userId });
+});
+
+app.delete("/api/admin/users/:id", async (request, response) => {
+  if (!(await hasAdminAccess(request))) {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  const userId = request.params.id;
+  const db = await getDb();
+  const existingUser = await rowsFromQuery<{ id: string }>("SELECT id FROM users WHERE id = ?", [userId])();
+
+  if (existingUser.length === 0) {
+    response.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  await db.execute("DELETE FROM user_equipment WHERE user_id = ?", [userId]);
+  await db.execute("DELETE FROM broadcast_requests WHERE requester_user_id = ?", [userId]);
+  await db.execute("DELETE FROM users WHERE id = ?", [userId]);
+  await persistDb();
 
   response.json({ ok: true });
 });
@@ -444,6 +610,7 @@ app.post("/api/requests/search", async (request, response) => {
     username: string | null;
     phone_number: string;
     share_phone_number: number;
+    receive_broadcasts: number;
     city_id: string;
     street_name: string | null;
     house_number: string | null;
@@ -490,6 +657,10 @@ app.post("/api/requests/search", async (request, response) => {
         return [];
       }
 
+      if (!user.receive_broadcasts) {
+        return [];
+      }
+
       const hasActiveTemporaryLocation =
         !!user.temporary_city_id &&
         !!user.temporary_expires_at &&
@@ -526,6 +697,191 @@ app.post("/api/requests/search", async (request, response) => {
     .sort((left, right) => left.distanceKm - right.distanceKm);
 
   response.json(results);
+});
+
+app.post("/api/requests/broadcast", async (request, response) => {
+  const { requesterUserId, equipmentIds, searchMode, cityId, streetName, houseNumber, lat, lng, returnPolicy } = request.body as {
+    requesterUserId?: string;
+    equipmentIds: string[];
+    searchMode: "gps" | "city";
+    cityId?: string;
+    streetName?: string;
+    houseNumber?: string;
+    lat?: number;
+    lng?: number;
+    returnPolicy?: "within_week" | "within_two_weeks" | "no_return" | "prefer_no_return";
+  };
+
+  if (!requesterUserId || !Array.isArray(equipmentIds) || equipmentIds.length === 0 || !returnPolicy) {
+    response.status(400).json({ message: "requesterUserId, equipmentIds and returnPolicy are required" });
+    return;
+  }
+
+  let baseLat = lat;
+  let baseLng = lng;
+
+  if ((typeof baseLat !== "number" || typeof baseLng !== "number") && cityId) {
+    const city = cities.find((item) => item.id === cityId);
+    baseLat = city?.lat;
+    baseLng = city?.lng;
+  }
+
+  if (typeof baseLat !== "number" || typeof baseLng !== "number") {
+    response.status(400).json({ message: "location is required" });
+    return;
+  }
+
+  const db = await getDb();
+  const recentBroadcast = (
+    await rowsFromQuery<{ created_at: string }>(
+      "SELECT created_at FROM broadcast_requests WHERE requester_user_id = ? ORDER BY created_at DESC LIMIT 1",
+      [requesterUserId]
+    )()
+  )[0];
+
+  if (recentBroadcast) {
+    const elapsedMs = Date.now() - new Date(recentBroadcast.created_at).getTime();
+    const cooldownMs = 3 * 60 * 60 * 1000;
+
+    if (elapsedMs < cooldownMs) {
+      const minutesLeft = Math.ceil((cooldownMs - elapsedMs) / (60 * 1000));
+      response.status(429).json({
+        message: `ניתן לשלוח הודעת בקשה אחת כל 3 שעות. נסה שוב בעוד ${minutesLeft} דקות.`
+      });
+      return;
+    }
+  }
+
+  const equipmentRows = await rowsFromQuery<{ id: string; name: string }>(
+    `SELECT DISTINCT e.id, e.name
+     FROM equipment e
+     WHERE e.id IN (${equipmentIds.map(() => "?").join(",")})`,
+    equipmentIds
+  )();
+  const equipmentMap = new Map(equipmentRows.map((item) => [item.id, item]));
+
+  const users = await rowsFromQuery<{
+    id: string;
+    full_name: string;
+    username: string | null;
+    phone_number: string;
+    share_phone_number: number;
+    receive_broadcasts: number;
+    city_id: string;
+    street_name: string | null;
+    house_number: string | null;
+    lat: number | null;
+    lng: number | null;
+    temporary_city_id: string | null;
+    temporary_expires_at: string | null;
+  }>("SELECT * FROM users")();
+  const userEquipment = await rowsFromQuery<{ user_id: string; equipment_id: string }>("SELECT * FROM user_equipment")();
+  const requester = (
+    await rowsFromQuery<{ id: string; username: string | null; phone_number: string | null }>(
+      "SELECT id, username, phone_number FROM users WHERE id = ?",
+      [requesterUserId]
+    )()
+  )[0];
+
+  if (!requester) {
+    response.status(404).json({ message: "Requester user not found" });
+    return;
+  }
+
+  const userEquipmentMap = new Map<string, string[]>();
+  for (const item of userEquipment) {
+    if (!userEquipmentMap.has(item.user_id)) {
+      userEquipmentMap.set(item.user_id, []);
+    }
+
+    userEquipmentMap.get(item.user_id)!.push(item.equipment_id);
+  }
+
+  const maxDistanceKm = 10;
+  const recipients = users
+    .filter((user) => {
+      if (user.id === requesterUserId) {
+        return false;
+      }
+
+      if (requester.username && user.username && requester.username.toLowerCase() === user.username.toLowerCase()) {
+        return false;
+      }
+
+      if (requester.phone_number && user.phone_number && requester.phone_number === user.phone_number) {
+        return false;
+      }
+
+      if (!user.share_phone_number) {
+        return false;
+      }
+
+      if (!user.receive_broadcasts) {
+        return false;
+      }
+
+      const matchedEquipmentIds = (userEquipmentMap.get(user.id) ?? []).filter((equipmentId) => equipmentIds.includes(equipmentId));
+      if (matchedEquipmentIds.length === 0) {
+        return false;
+      }
+
+      const hasActiveTemporaryLocation =
+        !!user.temporary_city_id &&
+        !!user.temporary_expires_at &&
+        new Date(user.temporary_expires_at).getTime() > Date.now();
+
+      const resultCityId = hasActiveTemporaryLocation ? user.temporary_city_id : user.city_id;
+      const city = cities.find((item) => item.id === resultCityId);
+      if (!city) {
+        return false;
+      }
+
+      const canUseStreetAddress = !hasActiveTemporaryLocation && typeof user.lat === "number" && typeof user.lng === "number";
+      const targetLat = canUseStreetAddress ? user.lat! : city.lat;
+      const targetLng = canUseStreetAddress ? user.lng! : city.lng;
+      const distanceKm = calculateDistanceKm(baseLat!, baseLng!, targetLat, targetLng);
+
+      return distanceKm <= maxDistanceKm;
+    })
+    .map((user) => ({
+      id: user.id,
+      fullName: user.full_name,
+      phoneNumber: user.phone_number
+    }));
+
+  const returnPolicyLabelMap = {
+    within_week: "החזרה בתוך שבוע",
+    within_two_weeks: "החזרה בתוך שבועיים",
+    no_return: "ללא החזרה",
+    prefer_no_return: "עדיפות ללא החזרה"
+  };
+
+  const equipmentNames = equipmentIds.map((id) => equipmentMap.get(id)?.name ?? id).join(", ");
+  const message = `דרוש ציוד סכרת באזורך | ציוד: ${equipmentNames} | ${returnPolicyLabelMap[returnPolicy]}`;
+
+  await db.execute(
+    `INSERT INTO broadcast_requests (
+      id, requester_user_id, message_template, selected_equipment, return_policy, recipients_count, recipient_phone_numbers, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      randomUUID(),
+      requesterUserId,
+      message,
+      equipmentNames,
+      returnPolicy,
+      recipients.length,
+      recipients.map((item) => item.phoneNumber).join(","),
+      new Date().toISOString()
+    ]
+  );
+
+  await persistDb();
+
+  response.json({
+    recipientsCount: recipients.length,
+    message,
+    recipients
+  });
 });
 
 async function start() {

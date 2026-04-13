@@ -1,6 +1,6 @@
 import { cities } from "../data/cities";
 import { equipmentCatalog } from "../data/equipment";
-import { SearchResult, TemporaryLocation, User } from "../types/models";
+import { BroadcastRequestPayload, SearchResult, TemporaryLocation, User } from "../types/models";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://my-aap-ss8w.onrender.com";
 
@@ -10,6 +10,7 @@ type UserPayload = {
   password?: string;
   phoneNumber: string;
   sharePhoneNumber: boolean;
+  receiveBroadcasts: boolean;
   cityId: string;
   address?: User["address"];
   equipmentIds: string[];
@@ -44,6 +45,16 @@ type SearchApiRow = {
   distanceBasis?: "city" | "street";
 };
 
+export type AdminUserRow = {
+  id: string;
+  fullName: string;
+  username: string;
+  phoneNumber: string;
+  cityId: string;
+  sharePhoneNumber: boolean;
+  receiveBroadcasts: boolean;
+};
+
 async function apiFetch<T>(path: string, init?: RequestInit) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -70,6 +81,7 @@ export async function registerUser(payload: UserPayload) {
       password: payload.password,
       phoneNumber: payload.phoneNumber,
       sharePhoneNumber: payload.sharePhoneNumber,
+      receiveBroadcasts: payload.receiveBroadcasts,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -90,6 +102,7 @@ export async function updateUser(userId: string, payload: UserPayload) {
       password: payload.password,
       phoneNumber: payload.phoneNumber,
       sharePhoneNumber: payload.sharePhoneNumber,
+      receiveBroadcasts: payload.receiveBroadcasts,
       cityId: payload.cityId,
       streetName: payload.address?.streetName,
       houseNumber: payload.address?.houseNumber,
@@ -160,6 +173,45 @@ export async function searchEquipment(payload: SearchPayload) {
     })
     .filter((item): item is SearchResult => item !== null)
     .sort((left, right) => left.distanceKm - right.distanceKm);
+}
+
+export async function broadcastEquipmentRequest(payload: BroadcastRequestPayload) {
+  return apiFetch<{ recipientsCount: number; message: string; recipients: Array<{ id: string; fullName: string; phoneNumber: string }> }>(
+    "/api/requests/broadcast",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
+}
+
+export async function listAdminUsers(requesterUserId: string) {
+  return apiFetch<AdminUserRow[]>("/api/admin/users", {
+    headers: { "x-user-id": requesterUserId }
+  });
+}
+
+export async function createAdminUser(payload: {
+  requesterUserId: string;
+  fullName: string;
+  username: string;
+  password: string;
+  phoneNumber: string;
+  cityId: string;
+  equipmentIds: string[];
+}) {
+  return apiFetch<{ id: string }>("/api/admin/users", {
+    method: "POST",
+    headers: { "x-user-id": payload.requesterUserId },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAdminUser(userId: string, requesterUserId: string) {
+  await apiFetch<{ ok: true }>(`/api/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: { "x-user-id": requesterUserId }
+  });
 }
 
 export { API_BASE_URL };
