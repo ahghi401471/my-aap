@@ -1,0 +1,68 @@
+name: CI compile apps
+
+on:
+  push:
+    branches:
+      - work
+      - private-browser-app
+  pull_request:
+    branches:
+      - work
+  workflow_dispatch:
+    inputs:
+      compile_target:
+        description: Which compile target should CI run?
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - existing-app
+          - private-browser
+
+jobs:
+  compile-existing-app:
+    name: Compile existing Expo app
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.compile_target == 'all' || inputs.compile_target == 'existing-app' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compile check
+        run: npm run build
+
+  build-private-browser:
+    name: Compile private browser app
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.compile_target == 'all' || inputs.compile_target == 'private-browser' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile private browser app
+        run: npm run build:private-browser
+
+      - name: Upload compiled private browser app
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-browser-dist
+          path: private-browser/dist

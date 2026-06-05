@@ -14,7 +14,9 @@
     "server:seed": "tsx server/seed.ts",
     "generate:cities": "node scripts/generate-cities.mjs",
     "generate:streets": "node scripts/generate-streets.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:private-browser": "node private-browser/scripts/build.mjs",
+    "ci:compile": "npm run build && npm run build:private-browser"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
